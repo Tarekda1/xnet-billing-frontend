@@ -1,0 +1,49 @@
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - main  # Run workflow when changes are pushed to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Code from Repository
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Step 2: Set Up Node.js
+      - name: Install Node.js dependencies
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'  # Use Node.js version 16 or your preferred version
+
+      # Step 3: Install Dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 4: Build the Application
+      - name: Build the app
+        run: npm run build
+
+      # Step 5: Deploy to S3
+      - name: Deploy to S3
+        uses: jakejarvis/s3-sync-action@v0.5.1
+        with:
+          args: --delete
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: 'us-east-1'
+          SOURCE_DIR: 'build'
+
+      # Step 6: Invalidate CloudFront Cache
+      - name: Invalidate CloudFront Cache
+        run: aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: 'us-east-1'
