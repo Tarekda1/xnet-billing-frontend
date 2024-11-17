@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Add this in a global CSS file or as inline styles */
+.loader {
+    border-top-color: #3498db;
+    animation: spinner 1s ease-in-out infinite;
+}
+
+@keyframes spinner {
+    to { transform: rotate(360deg); }
+}
+
+/* Tailwind utility for responsiveness */
+@media (max-width: 768px) {
+    .grid-cols-4 {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+  }
