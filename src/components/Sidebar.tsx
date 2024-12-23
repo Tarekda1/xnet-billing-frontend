@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBars, FaTachometerAlt, FaFileInvoice, FaCogs } from 'react-icons/fa';
+import {
+  FaBars,
+  FaTachometerAlt,
+  FaFileInvoice,
+  FaCogs,
+  FaUsers,
+  FaChartLine,
+  FaCreditCard,
+  FaLifeRing,
+} from 'react-icons/fa';
 
 const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -41,11 +50,16 @@ const Sidebar: React.FC = () => {
       </div>
 
       {/* Navigation Links */}
+      {/* Navigation Links */}
       <nav className="flex-grow">
         {[
           { to: '/', label: 'Dashboard', icon: FaTachometerAlt },
           { to: '/monthly-invoice', label: 'Invoices', icon: FaFileInvoice },
+          { to: '/clients', label: 'Clients', icon: FaUsers },
+          { to: '/reports', label: 'Reports', icon: FaChartLine },
+          { to: '/payments', label: 'Payments', icon: FaCreditCard },
           { to: '/settings', label: 'Settings', icon: FaCogs },
+          { to: '/support', label: 'Help/Support', icon: FaLifeRing },
         ].map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

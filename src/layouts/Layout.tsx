@@ -2,6 +2,7 @@ import React from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Breadcrumb from '../components/Breadcrumbs';
+import { ToastContainer } from 'react-toastify';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,18 @@ const Layout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 };

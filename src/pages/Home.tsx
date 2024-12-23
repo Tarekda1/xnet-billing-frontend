@@ -1,12 +1,12 @@
 // src/layouts/Home.tsx
 
 import React from 'react';
-import FileList from '../components/FileList';
+import InvoiceList from '../components/invoiceComponents/InvoiceList';
 
 const HomeLayout: React.FC = () => {
   return (
     <div>
-      <FileList />
+      <InvoiceList />
     </div>
   );
 };

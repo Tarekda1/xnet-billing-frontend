@@ -23,3 +23,14 @@ export interface Update {
   field: string;
   value: CellValue;
 }
+
+export interface Invoice {
+  userId: string;
+  customer_name?: string;
+  providerName?: string;
+  amount?: number;
+  status?: string;
+  invoice_date?: string;
+  monthly_date?: string;
+  notes?: string;
+}
