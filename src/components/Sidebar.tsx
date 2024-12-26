@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
         {[
           { to: '/', label: 'Dashboard', icon: FaTachometerAlt },
           { to: '/monthly-invoice', label: 'Invoices', icon: FaFileInvoice },
-          { to: '/clients', label: 'Clients', icon: FaUsers },
+          { to: '/clients', label: 'Payments', icon: FaUsers },
           { to: '/reports', label: 'Reports', icon: FaChartLine },
           { to: '/payments', label: 'Payments', icon: FaCreditCard },
           { to: '/settings', label: 'Settings', icon: FaCogs },

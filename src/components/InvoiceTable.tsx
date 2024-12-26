@@ -9,10 +9,21 @@ import {
   SortingState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Invoice } from '../types';
+import { Invoice } from '../types/types';
 import { formatDate } from '../utils/dateUtil';
-import { TableProps } from '../types/tableprops';
 import LoadingSpinner from './LoadingSprinner';
+
+type LoadingInvoices = { [key: string]: boolean };
+
+interface TableProps {
+  headers: { label: string; accessor: keyof Invoice; tooltip: string }[];
+  data: (Invoice & { statusComponent?: React.ReactNode })[];
+  onDelete?: (invoiceId: string) => void;
+  onEdit?: (invoice: Invoice) => void;
+  onPaid?: (invoice: Invoice) => void;
+  loadingInvoices: LoadingInvoices;
+  defaultRowsPerPage: number;
+}
 
 const InvoiceTable: React.FC<TableProps> = ({
   headers,
@@ -21,12 +32,13 @@ const InvoiceTable: React.FC<TableProps> = ({
   onEdit = () => {},
   onPaid = () => {},
   loadingInvoices,
+  defaultRowsPerPage,
 }) => {
   const columnHelper = createColumnHelper<Invoice>();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
   const parentRef = useRef<HTMLDivElement>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -85,11 +97,13 @@ const InvoiceTable: React.FC<TableProps> = ({
             if (accessor === 'invoice_date' && typeof value === 'string') {
               return formatDate(value);
             }
-            if (accessor === 'status') {
-              if (value === 'pending') {
-                return <span className="text-red-500">Pending</span>;
-              } else if (value === 'Paid') {
-                return <span className="text-green-500">Paid</span>;
+            if (accessor === 'status' && typeof value === 'string') {
+              if (value?.toLowerCase() === 'pending') {
+                return <span className="text-orange-600">Pending</span>;
+              } else if (value?.toLowerCase() === 'paid') {
+                return <span className="text-green-600">Paid</span>;
+              } else if (value?.toLowerCase() === 'not paid') {
+                return <span className="text-green-500">Not Paid</span>;
               } else {
                 return <span className="text-gray-500">Unknown</span>;
               }
@@ -122,9 +136,12 @@ const InvoiceTable: React.FC<TableProps> = ({
                 </button>
                 <button
                   onClick={() => onPaid(invoice)}
-                  className="text-green-500 hover:underline"
+                  className={`${invoice.status?.toLowerCase() === 'paid' ? 'text-orange-500' : 'text-green-500'}  hover:underline`}
                 >
-                  Paid
+                  {invoice.status?.toLowerCase() === 'not paid' ||
+                  invoice.status?.toLowerCase() === 'pending'
+                    ? 'Pay'
+                    : 'UnPay'}
                 </button>
                 <button
                   onClick={() => onDelete(invoice.userId)}
@@ -297,7 +314,7 @@ const InvoiceTable: React.FC<TableProps> = ({
             }}
             className="p-1 border border-gray-300 rounded"
           >
-            {[10, 20, 50, -1].map((size) => (
+            {[10, 20, 50, 100, -1].map((size) => (
               <option key={size} value={size}>
                 {size === -1 ? 'All' : size}
               </option>

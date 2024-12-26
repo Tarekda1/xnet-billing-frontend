@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Invoice } from '../../types';
+import { Invoice } from '../../types/types';
 
 interface InvoiceEditSidebarProps {
   invoice: Invoice;

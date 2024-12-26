@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExcelRow } from '../types';
+import { ExcelRow } from '../types/types';
 
 interface TableProps {
   headers: string[];

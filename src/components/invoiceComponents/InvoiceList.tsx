@@ -1,29 +1,38 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import Pagination from '../../components/Pagination'; // Extracted Pagination component
+import React, { useState, useMemo, useReducer } from 'react';
 import LoadingSpinner from '../../components/LoadingSprinner'; // Extracted Loading component
 import {
   useInvoiceQuery,
   useUpdateInvoiceQuery,
 } from '../../api/invoiceQueries';
+import { useQueryClient } from 'react-query';
 import InvoiceTable from '../InvoiceTable';
-import InvoiceEditSidebar from './InvoiceEditSidebar'; // Sidebar component for editing
-import { Invoice } from '../../types';
 import { notify } from '../../utils/toastUtils';
+import useFilteredInvoices from '../../hooks/useFilterInvoices';
+import InvoiceSidebar from '../InvoiceSidebar';
+import { Invoice } from '../../types/types';
+import InvoiceReducer, { InvoiceState } from '../../reducers/InvoiceReducer';
+import MonthYearSelector from '../MonthYearSelector';
 
 const InvoiceList: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedMonthYear, setSelectedMonthYear] = useState<string>('');
-  const [invoicesStatus, setInvoicesStatus] = useState<{
-    [key: string]: string;
-  }>({});
   const [selectedInvoice, setSelectedInvoice] = useState<null | Invoice>(null);
-  const [loadingInvoices, setLoadingInvoices] = useState<{
-    [key: string]: boolean;
-  }>({});
-
-  const rowsPerPage = 100; // Number of rows per page
+  const initialState: InvoiceState = {
+    loading: {},
+    status: {},
+  };
+  const [invoiceState, dispatch] = useReducer(InvoiceReducer, initialState);
   const { data: invoices = [], isLoading, isError } = useInvoiceQuery();
   const updateInvoices = useUpdateInvoiceQuery();
+  const queryClient = useQueryClient();
+  const rowsPerPage = 100;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const { filteredInvoices, paginatedData, totalPages } = useFilteredInvoices({
+    invoices,
+    selectedMonthYear,
+    rowsPerPage,
+    currentPage,
+    invoicesStatus: invoiceState.status,
+  });
 
   // Extract available months and years from invoice data
   const monthYearOptions = useMemo(() => {
@@ -43,7 +52,6 @@ const InvoiceList: React.FC = () => {
     event: React.ChangeEvent<HTMLSelectElement>,
   ) => {
     setSelectedMonthYear(event.target.value);
-    setCurrentPage(1);
   };
 
   const handlePaidClick = (invoice: Invoice) => {
@@ -52,11 +60,8 @@ const InvoiceList: React.FC = () => {
 
   // Handle status change
   const handleStatusChange = (invoiceId: string, newStatus: string) => {
-    setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: true }));
-    setInvoicesStatus((prevStatus) => ({
-      ...prevStatus,
-      [invoiceId]: newStatus,
-    }));
+    dispatch({ type: 'SET_LOADING', payload: { invoiceId, isLoading: true } });
+    dispatch({ type: 'SET_STATUS', payload: { invoiceId, status: newStatus } });
     let updates: Invoice[] = [];
     updates.push({
       userId: invoiceId,
@@ -67,6 +72,19 @@ const InvoiceList: React.FC = () => {
       {
         onSuccess: () => {
           notify('User updated successfully!', 'success');
+
+          // Update the local invoices data list
+          queryClient.setQueryData(
+            'invoices',
+            (oldData: Invoice[] | undefined) => {
+              if (!oldData) return [];
+              return oldData.map((invoice) =>
+                invoice.userId === invoiceId
+                  ? { ...invoice, status: newStatus }
+                  : invoice,
+              );
+            },
+          );
         },
         onError: (error: unknown) => {
           notify(
@@ -78,45 +96,15 @@ const InvoiceList: React.FC = () => {
           );
         },
         onSettled: () => {
-          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
+          // setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
+          dispatch({
+            type: 'SET_LOADING',
+            payload: { invoiceId, isLoading: false },
+          });
         },
       },
     );
   };
-
-  // Filter invoices by selected month and year
-  const filteredInvoices = useMemo(() => {
-    if (!selectedMonthYear) return invoices;
-    return invoices.filter((invoice) => {
-      const [month, year] = selectedMonthYear.split(' ');
-      const invoiceDate = new Date(invoice.invoice_date || Date.now());
-      const monthMatches =
-        invoiceDate.toLocaleString('default', { month: 'long' }) === month;
-      const yearMatches = invoiceDate.getFullYear().toString() === year;
-      return monthMatches && yearMatches;
-    });
-  }, [invoices, selectedMonthYear]);
-
-  // Calculate total pages based on filtered data
-  const totalPages = Math.ceil(filteredInvoices.length / rowsPerPage);
-  const paginatedData = useMemo(() => {
-    return filteredInvoices
-      .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-      .map((invoice) => ({
-        ...invoice,
-        status: invoicesStatus[invoice.userId] || invoice.status,
-      }));
-  }, [filteredInvoices, currentPage, rowsPerPage, invoicesStatus]);
-
-  // Handle page change
-  const handlePageChange = useCallback(
-    (page: number) => {
-      if (page >= 1 && page <= totalPages) {
-        setCurrentPage(page);
-      }
-    },
-    [totalPages],
-  );
 
   // Handle edit click to open sidebar
   const handleEditClick = (invoice: Invoice) => {
@@ -170,27 +158,11 @@ const InvoiceList: React.FC = () => {
         <>
           <div className="flex justify-between items-center mb-4">
             <div className="flex space-x-4">
-              <div>
-                <label
-                  htmlFor="monthYear"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Month and Year
-                </label>
-                <select
-                  id="monthYear"
-                  value={selectedMonthYear}
-                  onChange={handleMonthYearChange}
-                  className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">All</option>
-                  {monthYearOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <MonthYearSelector
+                value={selectedMonthYear}
+                options={monthYearOptions}
+                onChange={handleMonthYearChange}
+              />
             </div>
             <button
               onClick={() =>
@@ -204,34 +176,23 @@ const InvoiceList: React.FC = () => {
 
           <InvoiceTable
             headers={headers}
-            // data={paginatedData.map((invoice) => ({
-            //   ...invoice,
-            // }))}
-            loadingInvoices={loadingInvoices}
+            loadingInvoices={invoiceState.loading}
             data={filteredInvoices}
             onEdit={handleEditClick}
             onPaid={handlePaidClick}
+            defaultRowsPerPage={rowsPerPage}
           />
 
-          {/* <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          /> */}
-
-          {selectedInvoice && (
-            <InvoiceEditSidebar
-              invoice={selectedInvoice}
-              onClose={handleCloseSidebar}
-              onSave={(updatedInvoice) => {
-                handleStatusChange(
-                  updatedInvoice.userId,
-                  updatedInvoice.status || 'pending',
-                );
-                handleCloseSidebar();
-              }}
-            />
-          )}
+          <InvoiceSidebar
+            selectedInvoice={selectedInvoice}
+            onSave={(updatedInvoice: any) => {
+              handleStatusChange(
+                updatedInvoice.userId,
+                updatedInvoice.status || 'pending',
+              );
+            }}
+            onClose={handleCloseSidebar}
+          />
         </>
       )}
     </div>

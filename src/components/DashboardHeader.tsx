@@ -1,5 +1,6 @@
 // src/components/DashboardHeader.tsx
 import React, { useState } from 'react';
+import { useInvoiceQuery } from '../api/invoiceQueries';
 
 interface DashboardHeaderProps {
   userName: string;
@@ -7,8 +8,10 @@ interface DashboardHeaderProps {
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userName }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const { stats, isLoading, isError } = useInvoiceQuery();
 
   if (!isVisible) return null;
+  if (isLoading) return <div>Loading...</div>;
 
   return (
     <div className="relative p-6 bg-blue-500 text-white rounded-lg shadow-md">
@@ -23,6 +26,11 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userName }) => {
       <p className="text-sm mt-1">
         Here’s a quick overview of your invoices and customers.
       </p>
+      <div>
+        <p>Paid: {stats.paid}</p>
+        <p>Pending: {stats.pending}</p>
+        <p>Total: {stats.total}</p>
+      </div>
     </div>
   );
 };

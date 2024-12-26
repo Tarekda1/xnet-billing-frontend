@@ -1,7 +1,7 @@
 // src/api/saveFileQueries.ts
 import { useMutation } from 'react-query';
 import apiClient from './client';
-import { Update } from '../types';
+import { Update } from '../types/types';
 
 // Function to save file changes
 const saveFileChanges = async (payload: {

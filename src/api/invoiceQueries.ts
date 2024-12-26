@@ -1,7 +1,8 @@
 // src/api/fileQueries.ts
 import { useMutation, useQuery } from 'react-query';
 import apiClient from './client';
-import { Invoice } from '../types'; // Import the type
+import { Invoice } from '../types/types'; // Import the type
+import { useMemo } from 'react';
 
 // Function to fetch invoices
 const fetchInvoices = async (): Promise<Invoice[]> => {
@@ -11,7 +12,22 @@ const fetchInvoices = async (): Promise<Invoice[]> => {
 
 // React Query hook to fetch invoices
 export const useInvoiceQuery = () => {
-  return useQuery<Invoice[]>('invoices', fetchInvoices);
+  const query = useQuery<Invoice[]>('invoices', fetchInvoices);
+
+  // Use useMemo to calculate stats efficiently
+  const stats = useMemo(() => {
+    if (!query.data) return { paid: 0, pending: 0, total: 0 };
+
+    const paid = query.data.filter(
+      (invoice) => invoice.status?.toLowerCase() === 'paid',
+    ).length;
+    const pending = query.data.filter(
+      (invoice) => invoice.status?.toLowerCase() === 'pending',
+    ).length;
+
+    return { paid, pending, total: query.data.length };
+  }, [query.data]);
+  return { ...query, stats };
 };
 
 //update invoices in table
