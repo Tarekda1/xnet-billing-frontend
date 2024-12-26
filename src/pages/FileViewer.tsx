@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { usePresignedUrlMutation } from '../api/presignedUrlQueries';
 import { useSaveFileQuery } from '../api/saveFileQueries';
-import { ExcelRow, Update } from '../types';
+import { ExcelRow, Update } from '../types/types';
 import Table from '../components/Table'; // Extracted Table component
 import Pagination from '../components/Pagination'; // Extracted Pagination component
 import LoadingSpinner from '../components/LoadingSprinner'; // Extracted Loading component

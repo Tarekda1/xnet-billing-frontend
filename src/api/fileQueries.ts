@@ -1,7 +1,7 @@
 // src/api/fileQueries.ts
 import { useQuery } from 'react-query';
 import apiClient from './client';
-import { FileObject } from '../types'; // Import the type
+import { FileObject } from '../types/types'; // Import the type
 
 // Function to fetch files
 const fetchFiles = async (): Promise<FileObject[]> => {

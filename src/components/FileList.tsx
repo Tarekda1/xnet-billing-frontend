@@ -2,7 +2,7 @@
 import React from 'react';
 import { useFilesQuery } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { FileObject } from '../types';
+import { FileObject } from '../types/types';
 
 const FileList: React.FC = () => {
   const { data: files, isLoading, error } = useFilesQuery();
