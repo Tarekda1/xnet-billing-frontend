@@ -63,7 +63,7 @@ const InvoiceEditSidebar: React.FC<InvoiceEditSidebarProps> = ({
           type="text"
           id="customer_name"
           name="customer_name"
-          value={formData.customer_name}
+          value={formData.customerName}
           onChange={handleChange}
           className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         />
@@ -117,7 +117,7 @@ const InvoiceEditSidebar: React.FC<InvoiceEditSidebarProps> = ({
           type="date"
           id="dueDate"
           name="dueDate"
-          value={formData.invoice_date}
+          value={formData.invoiceDate}
           onChange={handleChange}
           className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         />
@@ -133,7 +133,7 @@ const InvoiceEditSidebar: React.FC<InvoiceEditSidebarProps> = ({
           type="date"
           id="dueDate"
           name="dueDate"
-          value={formData.monthly_date}
+          value={formData.monthlyDate}
           onChange={handleChange}
           className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         />

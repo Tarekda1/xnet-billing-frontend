@@ -26,7 +26,7 @@ const useFilteredInvoices = ({
     if (!selectedMonthYear) return invoices;
     return invoices.filter((invoice) => {
       const [month, year] = selectedMonthYear.split(' ');
-      const invoiceDate = new Date(invoice.invoice_date || Date.now());
+      const invoiceDate = new Date(invoice.invoiceDate || Date.now());
       return (
         invoiceDate.toLocaleString('default', { month: 'long' }) === month &&
         invoiceDate.getFullYear().toString() === year

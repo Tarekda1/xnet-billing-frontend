@@ -49,6 +49,26 @@ const InvoiceTable: React.FC<TableProps> = ({
     }));
   }, [filters]);
 
+  // Parent state to manage local status for all rows
+  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        data.map((invoice) => [invoice.userId, invoice.status || '']), // Ensure status is always a string
+      ),
+  );
+
+  const handleStatusChange = (userId: string, newStatus: string) => {
+    setLocalStatuses((prev) => ({ ...prev, [userId]: newStatus }));
+  };
+
+  const handleUpdate = (invoice: Invoice) => {
+    const updatedInvoice = {
+      ...invoice,
+      status: localStatuses[invoice.userId],
+    };
+    onPaid(updatedInvoice); // Trigger the update
+  };
+
   const handleFilterChange = (id: string, value: string) => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 
@@ -92,26 +112,39 @@ const InvoiceTable: React.FC<TableProps> = ({
             </div>
           ),
           cell: (info) => {
-            const value = info.getValue();
-            if (value === undefined || value === null) return '-';
-            if (accessor === 'invoice_date' && typeof value === 'string') {
-              return formatDate(value);
+            const invoice = info.row.original;
+            if (accessor === 'status' && typeof invoice.status === 'string') {
+              return (
+                <select
+                  value={localStatuses[invoice.userId]?.toLowerCase() || ''}
+                  onChange={(e) =>
+                    handleStatusChange(invoice.userId, e.target.value)
+                  }
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value="paid">Paid</option>
+                  <option value="not paid">Not Paid</option>
+                  <option value="pending">Pending</option>
+                </select>
+              );
             }
-            if (accessor === 'status' && typeof value === 'string') {
-              if (value?.toLowerCase() === 'pending') {
-                return <span className="text-orange-600">Pending</span>;
-              } else if (value?.toLowerCase() === 'paid') {
-                return <span className="text-green-600">Paid</span>;
-              } else if (value?.toLowerCase() === 'not paid') {
-                return <span className="text-green-500">Not Paid</span>;
-              } else {
-                return <span className="text-gray-500">Unknown</span>;
-              }
+
+            if (
+              accessor === 'invoiceDate' &&
+              typeof invoice.invoiceDate === 'string'
+            ) {
+              return formatDate(invoice.invoiceDate);
             }
+
             if (accessor === 'userId') {
-              return <span className="text-black-500  font-bold">{value}</span>;
+              return (
+                <span className="text-black-500 font-bold">
+                  {invoice.userId}
+                </span>
+              );
             }
-            return value;
+
+            return invoice[accessor];
           },
         }) as ColumnDef<Invoice>,
     );
@@ -121,13 +154,13 @@ const InvoiceTable: React.FC<TableProps> = ({
       header: 'Actions',
       cell: ({ row }) => {
         const invoice = row.original;
+
         return (
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             {loadingInvoices[invoice.userId] ? (
-              <LoadingSpinner small /> // Replace this with your spinner component
+              <LoadingSpinner small />
             ) : (
               <>
-                {' '}
                 <button
                   onClick={() => onEdit(invoice)}
                   className="text-blue-500 hover:underline"
@@ -135,13 +168,10 @@ const InvoiceTable: React.FC<TableProps> = ({
                   Edit
                 </button>
                 <button
-                  onClick={() => onPaid(invoice)}
-                  className={`${invoice.status?.toLowerCase() === 'paid' ? 'text-orange-500' : 'text-green-500'}  hover:underline`}
+                  onClick={() => handleUpdate(invoice)} // Trigger update with local state
+                  className="text-green-500 hover:underline"
                 >
-                  {invoice.status?.toLowerCase() === 'not paid' ||
-                  invoice.status?.toLowerCase() === 'pending'
-                    ? 'Pay'
-                    : 'UnPay'}
+                  Update
                 </button>
                 <button
                   onClick={() => onDelete(invoice.userId)}
@@ -157,7 +187,7 @@ const InvoiceTable: React.FC<TableProps> = ({
     });
 
     return [...coreColumns, actionsColumn];
-  }, [headers, onEdit, onDelete, filters]);
+  }, [headers, localStatuses, onEdit, onDelete, loadingInvoices]);
 
   const paginatedData = useMemo(() => {
     if (rowsPerPage === -1) {

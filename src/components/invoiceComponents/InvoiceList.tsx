@@ -21,7 +21,7 @@ const InvoiceList: React.FC = () => {
     status: {},
   };
   const [invoiceState, dispatch] = useReducer(InvoiceReducer, initialState);
-  const { data: invoices = [], isLoading, isError } = useInvoiceQuery();
+  const { invoices, isLoading, isError } = useInvoiceQuery();
   const updateInvoices = useUpdateInvoiceQuery();
   const queryClient = useQueryClient();
   const rowsPerPage = 100;
@@ -38,7 +38,7 @@ const InvoiceList: React.FC = () => {
   const monthYearOptions = useMemo(() => {
     const options = new Set<string>();
     invoices.forEach((invoice) => {
-      const invoiceDate = new Date(invoice.invoice_date || Date.now());
+      const invoiceDate = new Date(invoice.invoiceDate || Date.now());
       const monthYear = `${invoiceDate.toLocaleString('default', { month: 'long' })} ${invoiceDate.getFullYear()}`;
       options.add(monthYear);
     });
@@ -55,18 +55,25 @@ const InvoiceList: React.FC = () => {
   };
 
   const handlePaidClick = (invoice: Invoice) => {
-    handleStatusChange(invoice.userId, 'Paid');
+    handleStatusChange(invoice.userId, invoice.customerName || '', 'Paid');
   };
 
   // Handle status change
-  const handleStatusChange = (invoiceId: string, newStatus: string) => {
+  const handleStatusChange = (
+    invoiceId: string,
+    customerName: string,
+    newStatus: string,
+  ) => {
     dispatch({ type: 'SET_LOADING', payload: { invoiceId, isLoading: true } });
     dispatch({ type: 'SET_STATUS', payload: { invoiceId, status: newStatus } });
-    let updates: Invoice[] = [];
+
+    let updates: any[] = [];
     updates.push({
       userId: invoiceId,
+      customer_name: customerName, // Assuming customerName is not needed for updates
       status: newStatus,
     });
+
     updateInvoices.mutate(
       { updatedData: updates },
       {
@@ -76,13 +83,17 @@ const InvoiceList: React.FC = () => {
           // Update the local invoices data list
           queryClient.setQueryData(
             'invoices',
-            (oldData: Invoice[] | undefined) => {
-              if (!oldData) return [];
-              return oldData.map((invoice) =>
-                invoice.userId === invoiceId
-                  ? { ...invoice, status: newStatus }
-                  : invoice,
-              );
+            (oldData: { invoices: Invoice[]; metrics: any } | undefined) => {
+              if (!oldData || !oldData.invoices)
+                return { invoices: [], metrics: {} };
+              return {
+                ...oldData,
+                invoices: oldData.invoices.map((invoice) =>
+                  invoice.userId === invoiceId
+                    ? { ...invoice, status: newStatus }
+                    : invoice,
+                ),
+              };
             },
           );
         },
@@ -96,7 +107,6 @@ const InvoiceList: React.FC = () => {
           );
         },
         onSettled: () => {
-          // setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
           dispatch({
             type: 'SET_LOADING',
             payload: { invoiceId, isLoading: false },
@@ -125,7 +135,7 @@ const InvoiceList: React.FC = () => {
       {
         label: 'Client Name',
         tooltip: 'Name of the client',
-        accessor: 'customer_name',
+        accessor: 'customerName',
       },
       { label: 'Provider', tooltip: 'ISP provider', accessor: 'providerName' },
       {
@@ -138,11 +148,11 @@ const InvoiceList: React.FC = () => {
         tooltip: 'Current status of the invoice',
         accessor: 'status',
       },
-      { label: 'Invoice Date', tooltip: 'Due Date', accessor: 'invoice_date' },
+      { label: 'Invoice Date', tooltip: 'Due Date', accessor: 'invoiceDate' },
       {
         label: 'Monthly Date',
         tooltip: 'Due date for the payment',
-        accessor: 'monthly_date',
+        accessor: 'monthlyDate',
       },
     ];
 
@@ -185,9 +195,10 @@ const InvoiceList: React.FC = () => {
 
           <InvoiceSidebar
             selectedInvoice={selectedInvoice}
-            onSave={(updatedInvoice: any) => {
+            onSave={(updatedInvoice: Invoice) => {
               handleStatusChange(
                 updatedInvoice.userId,
+                updatedInvoice?.customerName || '',
                 updatedInvoice.status || 'pending',
               );
             }}
