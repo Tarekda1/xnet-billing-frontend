@@ -1,12 +1,12 @@
+// src/components/InvoiceList.tsx
 import React, { useState, useMemo, useReducer } from 'react';
-import LoadingSpinner from '../../components/LoadingSprinner'; // Extracted Loading component
+import LoadingSpinner from '../LoadingSpinner';
 import {
   useInvoiceQuery,
   useUpdateInvoiceQuery,
 } from '../../api/invoiceQueries';
 import { useQueryClient } from 'react-query';
 import InvoiceTable from '../InvoiceTable';
-import { notify } from '../../utils/toastUtils';
 import useFilteredInvoices from '../../hooks/useFilterInvoices';
 import InvoiceSidebar from '../InvoiceSidebar';
 import { Invoice } from '../../types/types';
@@ -54,18 +54,23 @@ const InvoiceList: React.FC = () => {
     setSelectedMonthYear(event.target.value);
   };
 
-  const handlePaidClick = (invoice: Invoice) => {
-    handleStatusChange(invoice.userId, invoice.customerName || '', 'Paid');
+  const handlePaidClick = (invoice: Invoice, newStatus: string) => {
+    handleStatusChange(invoice.userId, invoice.customerName || '', newStatus);
   };
 
-  // Handle status change
+  // Define state to track loading per invoice
+  const [loadingInvoices, setLoadingInvoices] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Handle status change with optimistic update
   const handleStatusChange = (
     invoiceId: string,
     customerName: string,
     newStatus: string,
   ) => {
-    dispatch({ type: 'SET_LOADING', payload: { invoiceId, isLoading: true } });
-    dispatch({ type: 'SET_STATUS', payload: { invoiceId, status: newStatus } });
+    // Set loading state for the specific invoice
+    setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: true }));
 
     let updates: any[] = [];
     updates.push({
@@ -78,39 +83,13 @@ const InvoiceList: React.FC = () => {
       { updatedData: updates },
       {
         onSuccess: () => {
-          notify('User updated successfully!', 'success');
-
-          // Update the local invoices data list
-          queryClient.setQueryData(
-            'invoices',
-            (oldData: { invoices: Invoice[]; metrics: any } | undefined) => {
-              if (!oldData || !oldData.invoices)
-                return { invoices: [], metrics: {} };
-              return {
-                ...oldData,
-                invoices: oldData.invoices.map((invoice) =>
-                  invoice.userId === invoiceId
-                    ? { ...invoice, status: newStatus }
-                    : invoice,
-                ),
-              };
-            },
-          );
+          // Loading state is already handled by the mutation hook's optimistic update
+          // Reset loading state
+          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
         },
         onError: (error: unknown) => {
-          notify(
-            `Failed to save changes: ${
-              error instanceof Error ? error.message : 'Unknown error'
-            }`,
-            'error',
-            { autoClose: 3000 },
-          );
-        },
-        onSettled: () => {
-          dispatch({
-            type: 'SET_LOADING',
-            payload: { invoiceId, isLoading: false },
-          });
+          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
+          // Error handling is already managed in the mutation hook
         },
       },
     );
@@ -125,6 +104,7 @@ const InvoiceList: React.FC = () => {
   const handleCloseSidebar = () => {
     setSelectedInvoice(null);
   };
+
   const headers: { label: string; accessor: keyof Invoice; tooltip: string }[] =
     [
       {
@@ -186,7 +166,7 @@ const InvoiceList: React.FC = () => {
 
           <InvoiceTable
             headers={headers}
-            loadingInvoices={invoiceState.loading}
+            loadingInvoices={loadingInvoices} // Pass the correct loading state
             data={filteredInvoices}
             onEdit={handleEditClick}
             onPaid={handlePaidClick}

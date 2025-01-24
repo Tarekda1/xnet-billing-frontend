@@ -9,7 +9,7 @@ export const notify = (
 ) => {
   const baseOptions: ToastOptions = {
     position: 'bottom-left',
-    autoClose: 8000,
+    autoClose: 1000,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,

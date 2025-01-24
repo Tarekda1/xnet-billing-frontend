@@ -24,6 +24,12 @@ export interface Update {
   value: CellValue;
 }
 
+// src/types/invoices.ts
+export interface InvoicesData {
+  invoices: Invoice[];
+  metrics: any; // Replace 'any' with a more specific type if available
+}
+
 export interface Invoice {
   userId: string;
   customerName?: string;

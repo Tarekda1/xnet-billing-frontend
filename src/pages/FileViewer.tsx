@@ -6,7 +6,7 @@ import { useSaveFileQuery } from '../api/saveFileQueries';
 import { ExcelRow, Update } from '../types/types';
 import Table from '../components/Table'; // Extracted Table component
 import Pagination from '../components/Pagination'; // Extracted Pagination component
-import LoadingSpinner from '../components/LoadingSprinner'; // Extracted Loading component
+import LoadingSpinner from '../components/LoadingSpinner'; // Extracted Loading component
 
 const FileViewer: React.FC = () => {
   const { fileId } = useParams<{ fileId: string }>();
