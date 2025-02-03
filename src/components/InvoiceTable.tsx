@@ -1,4 +1,4 @@
-// InvoiceTable.jsx
+// src/components/InvoiceTable.tsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   createColumnHelper,
@@ -9,7 +9,6 @@ import {
   ColumnDef,
   SortingState,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { Invoice } from '../types/types';
 import LoadingSpinner from '../components/LoadingSpinner'; // Ensure correct import
 import {
@@ -20,18 +19,32 @@ import {
   FaArrowRight,
   FaAngleDoubleLeft,
   FaAngleDoubleRight,
+  FaArrowDown,
 } from 'react-icons/fa';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useInvoiceStatus } from '../context/InvoiceStatusContext';
 
 type LoadingInvoices = { [key: string]: boolean };
 
 interface TableProps {
   headers: { label: string; accessor: keyof Invoice; tooltip: string }[];
-  data: (Invoice & { statusComponent?: React.ReactNode })[];
+  data: Invoice[];
   onDelete?: (invoiceId: string) => void;
   onEdit?: (invoice: Invoice) => void;
-  onPaid?: (invoice: Invoice, newStatus: string) => void; // Updated to match handleStatusChange
+  onPaid?: (invoiceId: string, customerName: string, newStatus: string) => void; // Updated to match handleStatusChange
   loadingInvoices: LoadingInvoices;
   defaultRowsPerPage: number;
+  totalInvoices: number;
+  isFetching: boolean;
+  pagination: {
+    currentPage: number;
+    hasNextPage: boolean;
+    onPageChange: () => void;
+    onPreviousPage: () => void;
+    hasPreviousPage: boolean;
+    limit: number;
+    onRowsPerPageChange: (newLimit: number) => void;
+  };
 }
 
 const InvoiceTable: React.FC<TableProps> = ({
@@ -41,26 +54,25 @@ const InvoiceTable: React.FC<TableProps> = ({
   onEdit = () => {},
   onPaid = () => {},
   loadingInvoices,
-  defaultRowsPerPage,
+  totalInvoices,
+  isFetching,
+  pagination,
 }) => {
   const columnHelper = createColumnHelper<Invoice>();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
   const parentRef = useRef<HTMLDivElement>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const startNumber = (pagination.currentPage - 1) * pagination.limit + 1;
+  const endNumber = Math.min(startNumber + data.length - 1, totalInvoices);
+  // Add this state at the top of your component
+  const [isAtBottom, setIsAtBottom] = useState(false);
 
   const debouncedFilters = useMemo(() => {
     return Object.entries(filters).map(([id, value]) => ({ id, value }));
   }, [filters]);
 
-  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        data.map((invoice) => [invoice.userId, invoice.status || '']),
-      ),
-  );
+  const { localStatuses, setLocalStatuses } = useInvoiceStatus();
 
   useEffect(() => {
     setLocalStatuses(
@@ -74,12 +86,64 @@ const InvoiceTable: React.FC<TableProps> = ({
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       setFilters((prev) => ({ ...prev, [id]: value }));
-    }, 300); // Increased debounce time for better UX
+    }, 100); // Increased debounce time for better UX
   };
 
-  const handleStatusChange = (invoice: Invoice, newStatus: string) => {
-    onPaid && onPaid(invoice, newStatus);
+  const handleStatusChange = (
+    invoiceId: string,
+    customerName: string,
+    newStatus: string,
+  ) => {
+    setLocalStatuses((prev) => ({
+      ...prev,
+      [invoiceId]: newStatus,
+    }));
+    onPaid && onPaid(invoiceId, customerName, newStatus);
   };
+  const scrollPadding = 40;
+  // Scroll to bottom function
+  // const scrollToBottom = () => {
+  //   if (parentRef.current) {
+  //     console.log('Scrolling to bottom');
+  //     parentRef.current.scrollTo({
+  //       top: parentRef.current.scrollHeight,
+  //       behavior: 'smooth',
+  //     });
+  //   }
+  // };
+  // Modified scrollToBottom function
+  const scrollToBottom = () => {
+    if (parentRef.current) {
+      parentRef.current.scrollTo({
+        top:
+          rowVirtualizer.getTotalSize() -
+          parentRef.current.clientHeight +
+          scrollPadding,
+        behavior: 'smooth',
+      });
+      // Force update after scroll completes
+      setTimeout(() => setIsAtBottom(true), 500);
+    }
+  };
+
+  // Add scroll position handler
+  const handleScroll = () => {
+    if (!parentRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = parentRef.current;
+    // More accurate calculation with 1px threshold
+    const isBottom = Math.abs(scrollHeight - (scrollTop + clientHeight)) <= 1;
+    setIsAtBottom(isBottom);
+  };
+
+  // Add scroll event listener to the container
+  useEffect(() => {
+    const container = parentRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const formatCurrency = (value: number): string => {
     return value.toLocaleString('en-US', {
@@ -106,6 +170,12 @@ const InvoiceTable: React.FC<TableProps> = ({
       minute: '2-digit',
     }).format(date);
   };
+
+  useEffect(() => {
+    if (parentRef.current) {
+      parentRef.current.scrollTop = parentRef.current.scrollHeight;
+    }
+  }, [data]);
 
   const columns: ColumnDef<Invoice>[] = useMemo(() => {
     const coreColumns = headers.map(
@@ -153,7 +223,11 @@ const InvoiceTable: React.FC<TableProps> = ({
                   <select
                     value={currentStatus}
                     onChange={(e) =>
-                      handleStatusChange(invoice, e.target.value)
+                      handleStatusChange(
+                        invoice.userId,
+                        invoice.customerName || '',
+                        e.target.value,
+                      )
                     }
                     className={`border border-gray-300 rounded px-2 py-1 text-sm ${
                       statusClasses[currentStatus] || ''
@@ -165,7 +239,7 @@ const InvoiceTable: React.FC<TableProps> = ({
                   </select>
                   {loadingInvoices[invoice.userId] && (
                     <div
-                      className={`animate-spin rounded-full border-2 border-t-2 ${'h-4 w-4'} border-gray-300 border-t-blue-500`}
+                      className={`animate-spin rounded-full border-2 border-t-2 h-4 w-4 border-gray-300 border-t-blue-500`}
                     ></div>
                   )}
                 </div>
@@ -220,7 +294,13 @@ const InvoiceTable: React.FC<TableProps> = ({
               <FaEdit size={16} />
             </button>
             <button
-              onClick={() => handleStatusChange(invoice, 'Paid')} // Replace 'newStatusValue' accordingly
+              onClick={() =>
+                handleStatusChange(
+                  invoice.userId,
+                  invoice.customerName || '',
+                  'paid',
+                )
+              } // Replace 'paid' with desired status
               title="Update"
               className={`p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors`}
               disabled={loadingInvoices[invoice.userId]}
@@ -242,22 +322,8 @@ const InvoiceTable: React.FC<TableProps> = ({
     return [...coreColumns, actionsColumn];
   }, [headers, localStatuses, onEdit, onDelete, loadingInvoices]);
 
-  const paginatedData = useMemo(() => {
-    if (rowsPerPage === -1) return data;
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return data.slice(startIndex, startIndex + rowsPerPage);
-  }, [data, currentPage, rowsPerPage]);
-
-  const totalPages = Math.ceil(data.length / rowsPerPage);
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage !== currentPage && newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
   const table = useReactTable({
-    data: paginatedData,
+    data,
     columns,
     getRowId: (row) => row.userId, // Ensure userId is unique
     getCoreRowModel: getCoreRowModel(),
@@ -267,24 +333,25 @@ const InvoiceTable: React.FC<TableProps> = ({
     onSortingChange: setSorting,
   });
 
+  // Optionally, implement virtual scrolling
   const rowVirtualizer = useVirtualizer({
     count: table.getRowModel().rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60, // Adjust based on your actual row height
-    overscan: 10,
+    overscan: pagination.limit,
   });
 
   useEffect(() => {
     if (parentRef.current) parentRef.current.scrollTop = 0;
-  }, [currentPage]);
+  }, [data]);
 
   return (
     <div>
       {/* Card/List View for screens below 992px */}
       <div className="custom:hidden">
-        {paginatedData.map((invoice) => (
+        {data.map((invoice) => (
           <div
-            key={invoice.userId} // Ensure using a unique key
+            key={`${invoice.userId}-${invoice.customerName}`} // Ensure using a unique key
             className="border rounded p-4 my-2 bg-white shadow"
           >
             <div>
@@ -301,7 +368,13 @@ const InvoiceTable: React.FC<TableProps> = ({
               <strong>Status:</strong>
               <select
                 value={localStatuses[invoice.userId]?.toLowerCase() || ''}
-                onChange={(e) => handleStatusChange(invoice, e.target.value)}
+                onChange={(e) => {
+                  handleStatusChange(
+                    invoice.userId,
+                    invoice.customerName || '',
+                    e.target.value,
+                  );
+                }}
                 className="border border-gray-300 rounded px-2 py-1 text-sm ml-2"
               >
                 <option value="paid">Paid</option>
@@ -321,9 +394,14 @@ const InvoiceTable: React.FC<TableProps> = ({
                     <FaEdit size={16} />
                   </button>
                   <button
-                    onClick={() =>
-                      handleStatusChange(invoice, 'newStatusValue')
-                    } // Replace 'newStatusValue' accordingly
+                    onClick={
+                      () =>
+                        handleStatusChange(
+                          invoice.userId,
+                          invoice.customerName || '',
+                          'paid',
+                        ) // Replace with desired status
+                    }
                     className="text-green-600 hover:text-green-800"
                   >
                     <FaSave size={16} />
@@ -343,20 +421,10 @@ const InvoiceTable: React.FC<TableProps> = ({
         {/* Enhanced Pagination Controls for Card View */}
         <div className="flex flex-col items-center mt-4 space-y-2">
           <div className="flex items-center space-x-2">
-            {/* First Page Button */}
-            <button
-              onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
-              className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-              aria-label="First Page"
-            >
-              <FaAngleDoubleLeft />
-            </button>
-
             {/* Previous Page Button */}
             <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => pagination.onPreviousPage()}
+              disabled={pagination.currentPage === 1 || isFetching}
               className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
               aria-label="Previous Page"
             >
@@ -364,50 +432,17 @@ const InvoiceTable: React.FC<TableProps> = ({
             </button>
 
             {/* Current Page Indicator */}
-            <span className="text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
+            <span className="text-gray-700">Page {pagination.currentPage}</span>
 
             {/* Next Page Button */}
             <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => pagination.onPageChange()}
+              disabled={!pagination.hasNextPage || isFetching}
               className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
               aria-label="Next Page"
             >
               <FaArrowRight />
             </button>
-
-            {/* Last Page Button */}
-            <button
-              onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
-              className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-              aria-label="Last Page"
-            >
-              <FaAngleDoubleRight />
-            </button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <label htmlFor="rowsPerPage" className="text-gray-700">
-              Rows per page:
-            </label>
-            <select
-              id="rowsPerPage"
-              value={rowsPerPage}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                setRowsPerPage(value);
-                if (value === -1) setCurrentPage(1);
-              }}
-              className="p-1 border border-gray-300 rounded text-sm"
-            >
-              {[10, 20, 50, 100, -1].map((size) => (
-                <option key={size} value={size}>
-                  {size === -1 ? 'All' : size}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
       </div>
@@ -433,13 +468,14 @@ const InvoiceTable: React.FC<TableProps> = ({
             </div>
           </div>
 
-          {paginatedData.length === 0 ? (
+          {data.length === 0 ? (
             <div className="text-center p-4">No invoices available.</div>
           ) : (
-            <div ref={parentRef} className="relative scroll-smooth">
+            <div className="relative scroll-smooth">
               <div
+                ref={parentRef}
+                className="h-[550px] overflow-y-auto"
                 style={{
-                  height: rowVirtualizer.getTotalSize(),
                   position: 'relative',
                 }}
               >
@@ -448,7 +484,7 @@ const InvoiceTable: React.FC<TableProps> = ({
                   if (!row) return null;
                   return (
                     <div
-                      key={row.id} // row.id corresponds to userId
+                      key={`${row.original.userId}-${row.original.customerName}`} // row.id corresponds to userId
                       style={{
                         position: 'absolute',
                         top: `${virtualRow.start}px`,
@@ -475,77 +511,62 @@ const InvoiceTable: React.FC<TableProps> = ({
                   );
                 })}
               </div>
+              {false && (
+                <button
+                  onClick={scrollToBottom}
+                  className="fixed bottom-[30px] right-[60px] bg-blue-500 text-white px-2 py-2 rounded-full shadow-md hover:bg-blue-600 transition"
+                >
+                  <FaArrowDown />
+                </button>
+              )}
             </div>
           )}
 
           {/* Enhanced Pagination Controls for Table View */}
-          <div className="flex flex-col sm:flex-row justify-center items-center mt-4 space-y-2 sm:space-y-0">
-            <div className="flex items-center justify-center align-center space-x-2">
-              {/* First Page Button */}
+          <div className="flex flex-col sm:flex-row justify-start items-center mt-4 space-y-2 sm:space-y-0">
+            {/* Display current range */}
+            <span className="text-gray-700 font-semibold basis-[40%]">
+              Showing {startNumber} - {endNumber} of {totalInvoices} invoices
+            </span>
+            {/* Pagination Buttons */}
+            <div className="flex items-center space-x-2 basis-[50%]">
               <button
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-                className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-                aria-label="First Page"
-              >
-                <FaAngleDoubleLeft />
-              </button>
-
-              {/* Previous Page Button */}
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
+                onClick={pagination.onPreviousPage}
+                disabled={!pagination.hasPreviousPage}
                 className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
                 aria-label="Previous Page"
               >
                 <FaArrowLeft />
               </button>
 
-              {/* Current Page Indicator */}
               <span className="text-gray-700">
-                Page {currentPage} of {totalPages}
+                Page {pagination.currentPage}
               </span>
 
-              {/* Next Page Button */}
               <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                onClick={pagination.onPageChange}
+                disabled={pagination.hasNextPage === false}
                 className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
                 aria-label="Next Page"
               >
                 <FaArrowRight />
               </button>
-
-              {/* Last Page Button */}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-                aria-label="Last Page"
-              >
-                <FaAngleDoubleRight />
-              </button>
-            </div>
-            <div className="flex items-center space-x-2">
-              <label htmlFor="rowsPerPage" className="text-gray-700">
-                Rows per page:
-              </label>
-              <select
-                id="rowsPerPage"
-                value={rowsPerPage}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  setRowsPerPage(value);
-                  if (value === -1) setCurrentPage(1);
-                }}
-                className="p-1 border border-gray-300 rounded text-sm"
-              >
-                {[10, 20, 50, 100, -1].map((size) => (
-                  <option key={size} value={size}>
-                    {size === -1 ? 'All' : size}
-                  </option>
-                ))}
-              </select>
+              {/* Rows per page dropdown */}
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-700">Rows per page:</span>
+                <select
+                  value={pagination.limit}
+                  onChange={(e) =>
+                    pagination.onRowsPerPageChange(Number(e.target.value))
+                  }
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

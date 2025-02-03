@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { InvoiceProvider } from './context/InvoiceContext';
 
 const queryClient = new QueryClient();
 
@@ -16,14 +17,16 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Layout>
-          <Suspense fallback={<div>Loading...</div>}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/monthly-invoice" element={<Home />} />
-              <Route path="/view/:fileId" element={<FileViewer />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
-          </Suspense>
+          <InvoiceProvider>
+            <Suspense fallback={<div>Loading...</div>}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/monthly-invoice" element={<Home />} />
+                <Route path="/view/:fileId" element={<FileViewer />} />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
+            </Suspense>
+          </InvoiceProvider>
         </Layout>
       </Router>
     </QueryClientProvider>

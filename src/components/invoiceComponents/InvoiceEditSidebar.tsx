@@ -16,6 +16,19 @@ const InvoiceEditSidebar: React.FC<InvoiceEditSidebarProps> = ({
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useEffect(() => {
+    const formatDate = (dateString: string) => {
+      if (!dateString) return ''; // Handle empty values
+      return new Date(dateString).toISOString().split('T')[0]; // ✅ Extract "yyyy-MM-dd"
+    };
+    console.log('invoice', invoice);
+    setFormData({
+      ...invoice,
+      invoiceDate: formatDate(invoice.invoiceDate || new Date().toUTCString()),
+      monthlyDate: formatDate(invoice.monthlyDate || new Date().toUTCString()),
+    });
+  }, [invoice]);
+
+  useEffect(() => {
     setIsVisible(true);
   }, []);
 
@@ -96,13 +109,13 @@ const InvoiceEditSidebar: React.FC<InvoiceEditSidebarProps> = ({
         <select
           id="status"
           name="status"
-          value={formData.status}
+          value={formData.status?.toLowerCase()}
           onChange={handleChange}
           className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         >
-          <option value="Pending">Pending</option>
-          <option value="Paid">Paid</option>
-          <option value="Not Paid">Not Paid</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="not paid">Not Paid</option>
         </select>
       </div>
 

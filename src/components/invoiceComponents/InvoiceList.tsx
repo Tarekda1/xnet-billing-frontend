@@ -1,110 +1,53 @@
-// src/components/InvoiceList.tsx
-import React, { useState, useMemo, useReducer } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import LoadingSpinner from '../LoadingSpinner';
 import {
+  InvoiceResponse,
   useInvoiceQuery,
   useUpdateInvoiceQuery,
 } from '../../api/invoiceQueries';
 import { useQueryClient } from 'react-query';
 import InvoiceTable from '../InvoiceTable';
-import useFilteredInvoices from '../../hooks/useFilterInvoices';
 import InvoiceSidebar from '../InvoiceSidebar';
-import { Invoice } from '../../types/types';
-import InvoiceReducer, { InvoiceState } from '../../reducers/InvoiceReducer';
+import { Invoice, Pagination } from '../../types/types';
+import { useInvoiceContext } from '../../context/InvoiceContext';
 import MonthYearSelector from '../MonthYearSelector';
+import apiClient from '../../api/client';
+import { useInvoiceStatus } from '../../context/InvoiceStatusContext';
 
 const InvoiceList: React.FC = () => {
-  const [selectedMonthYear, setSelectedMonthYear] = useState<string>('');
-  const [selectedInvoice, setSelectedInvoice] = useState<null | Invoice>(null);
-  const initialState: InvoiceState = {
-    loading: {},
-    status: {},
-  };
-  const [invoiceState, dispatch] = useReducer(InvoiceReducer, initialState);
-  const { invoices, isLoading, isError } = useInvoiceQuery();
-  const updateInvoices = useUpdateInvoiceQuery();
-  const queryClient = useQueryClient();
-  const rowsPerPage = 100;
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const { filteredInvoices, paginatedData, totalPages } = useFilteredInvoices({
-    invoices,
-    selectedMonthYear,
-    rowsPerPage,
-    currentPage,
-    invoicesStatus: invoiceState.status,
-  });
-
-  // Extract available months and years from invoice data
-  const monthYearOptions = useMemo(() => {
-    const options = new Set<string>();
-    invoices.forEach((invoice) => {
-      const invoiceDate = new Date(invoice.invoiceDate || Date.now());
-      const monthYear = `${invoiceDate.toLocaleString('default', { month: 'long' })} ${invoiceDate.getFullYear()}`;
-      options.add(monthYear);
-    });
-    return Array.from(options).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    );
-  }, [invoices]);
-
-  // Handle month and year change
-  const handleMonthYearChange = (
-    event: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    setSelectedMonthYear(event.target.value);
-  };
-
-  const handlePaidClick = (invoice: Invoice, newStatus: string) => {
-    handleStatusChange(invoice.userId, invoice.customerName || '', newStatus);
-  };
-
-  // Define state to track loading per invoice
+  const { queryParams, setQueryParams } = useInvoiceContext();
+  const [lastKeysHistory, setLastKeysHistory] = useState<string[]>([]);
+  const { limit, selectedMonthYear, statusFilters, currentPage } = queryParams;
+  const { localStatuses, setLocalStatuses } = useInvoiceStatus();
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [loadingInvoices, setLoadingInvoices] = useState<
     Record<string, boolean>
   >({});
 
-  // Handle status change with optimistic update
-  const handleStatusChange = (
-    invoiceId: string,
-    customerName: string,
-    newStatus: string,
-  ) => {
-    // Set loading state for the specific invoice
-    setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: true }));
+  const queryClient = useQueryClient();
+  const updateInvoices = useUpdateInvoiceQuery();
 
-    let updates: any[] = [];
-    updates.push({
-      userId: invoiceId,
-      customer_name: customerName, // Assuming customerName is not needed for updates
-      status: newStatus,
-    });
+  const { data, isLoading, isError, isFetching } = useInvoiceQuery({
+    ...queryParams,
+    lastKey: lastKeysHistory[currentPage - 2] || null, // Ensure correct lastKey is used
+  });
 
-    updateInvoices.mutate(
-      { updatedData: updates },
-      {
-        onSuccess: () => {
-          // Loading state is already handled by the mutation hook's optimistic update
-          // Reset loading state
-          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
-        },
-        onError: (error: unknown) => {
-          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
-          // Error handling is already managed in the mutation hook
-        },
-      },
-    );
+  // Extract invoices and pagination info
+  const invoices = data?.invoices || [];
+  const pagination: Pagination = data?.pagination || {
+    page: 1,
+    limit: limit,
+    hasNextPage: false,
+    nextPage: null,
+    lastKey: null,
+    totalInvoices: 0,
   };
+  const totalInvoices = data?.pagination?.totalInvoices || 0;
 
-  // Handle edit click to open sidebar
-  const handleEditClick = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-  };
+  const hasNextPage = !!pagination.nextPage;
+  const hasPreviousPage = currentPage > 1;
 
-  // Close sidebar
-  const handleCloseSidebar = () => {
-    setSelectedInvoice(null);
-  };
-
+  // Define table headers
   const headers: { label: string; accessor: keyof Invoice; tooltip: string }[] =
     [
       {
@@ -136,56 +79,258 @@ const InvoiceList: React.FC = () => {
       },
     ];
 
+  // Extract available months and years from invoice data
+  const monthYearOptions = useMemo(() => {
+    const options = new Set<string>();
+    invoices.forEach((invoice) => {
+      const invoiceDate = new Date(invoice.invoiceDate || Date.now());
+      const monthYear = `${invoiceDate.toLocaleString('default', { month: 'long' })} ${invoiceDate.getFullYear()}`;
+      options.add(monthYear);
+    });
+    return Array.from(options).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+    );
+  }, [invoices]);
+
+  // Handle invoice status change
+  const handleStatusChange = (
+    invoiceId: string,
+    customerName: string,
+    newStatus: string,
+  ) => {
+    const previousStatus = localStatuses[invoiceId]; // Store previous status
+    setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: true }));
+
+    const updates = [
+      { userId: invoiceId, customer_name: customerName, status: newStatus },
+    ];
+    // Optimistically update the status in context
+    setLocalStatuses((prev) => ({
+      ...prev,
+      [invoiceId]: newStatus,
+    }));
+    updateInvoices.mutate(
+      { updatedData: updates },
+      {
+        onSuccess: () => {
+          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
+          queryClient.invalidateQueries(['invoices', queryParams]); // Refetch invoices after update
+        },
+        onError: (error: unknown) => {
+          setLoadingInvoices((prev) => ({ ...prev, [invoiceId]: false }));
+          console.error('Failed to update invoice status:', error);
+          setLocalStatuses((prev) => ({
+            ...prev,
+            [invoiceId]: previousStatus, // Rollback to previous status
+          }));
+        },
+      },
+    );
+  };
+
+  const handleCloseSidebar = () => {
+    setSelectedInvoice(null); // ✅ Close sidebar
+  };
+
+  // Handle Next Page
+  const handleNextPage = () => {
+    if (pagination.lastKey !== null) {
+      setLastKeysHistory((prev) => [...prev, pagination.lastKey || '']); // Store lastKey
+      setQueryParams((prev) => ({
+        ...prev,
+        currentPage: prev.currentPage + 1,
+      }));
+    }
+  };
+
+  // Handler for changing the rows per page
+  const handleRowsPerPageChange = (newLimit: number) => {
+    setQueryParams((prev) => ({
+      ...prev,
+      limit: newLimit, // ✅ Update the limit
+      currentPage: 1, // ✅ Reset to first page
+    }));
+  };
+
+  // Handle Previous Page
+  const handlePreviousPage = () => {
+    if (hasPreviousPage) {
+      setLastKeysHistory((prev) => prev.slice(0, -1)); // Remove last stored lastKey
+      setQueryParams((prev) => ({
+        ...prev,
+        currentPage: prev.currentPage - 1,
+      }));
+    }
+  };
+
+  // Prefetch the next page **only if it's not already cached**
+  useEffect(() => {
+    if (hasNextPage && pagination.lastKey !== null) {
+      queryClient.prefetchQuery(
+        [
+          'invoices',
+          { limit, page: currentPage + 1, lastKey: pagination.lastKey },
+        ],
+        async () => {
+          const response = await apiClient.get<InvoiceResponse>(
+            '/invoices/list',
+            {
+              params: {
+                limit,
+                page: currentPage + 1,
+                lastKey: pagination.lastKey,
+                selectedMonthYear,
+                statusFilters,
+              },
+            },
+          );
+          return response.data;
+        },
+        { staleTime: 5000 }, // Prevent unnecessary refetching
+      );
+    }
+  }, [
+    hasNextPage,
+    pagination.lastKey,
+    currentPage,
+    limit,
+    selectedMonthYear,
+    statusFilters,
+    queryClient,
+  ]);
+
   return (
     <div className="mx-auto relative">
-      {isLoading ? (
-        <LoadingSpinner message="Loading invoices..." />
-      ) : isError ? (
-        <p className="text-red-500">
-          Failed to load invoices. Please try again later.
-        </p>
-      ) : (
-        <>
+      <>
+        <div className="flex justify-between items-center mb-4">
           <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-4">
-              <MonthYearSelector
-                value={selectedMonthYear}
-                options={monthYearOptions}
-                onChange={handleMonthYearChange}
-              />
+            {/* Filter Box: Includes Month/Year Dropdown & Status Checkboxes Horizontally */}
+            <div className="border border-gray-300 rounded-lg p-3 bg-white shadow-md flex items-center space-x-6">
+              {/* Filter by Month/Year */}
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+                  Filter by Month/Year:
+                </label>
+                <MonthYearSelector
+                  value={selectedMonthYear || ''}
+                  options={monthYearOptions}
+                  onChange={(e) =>
+                    setQueryParams({
+                      ...queryParams,
+                      selectedMonthYear: e.target.value,
+                      currentPage: 1, // Reset page when filters change
+                    })
+                  }
+                />
+              </div>
+
+              {/* Filter by Status */}
+              <div className="flex items-center space-x-4">
+                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+                  Filter by Status:
+                </label>
+
+                <label className="inline-flex items-center space-x-1">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={statusFilters?.paid || false}
+                    onChange={() =>
+                      setQueryParams((prev) => ({
+                        ...prev,
+                        statusFilters: {
+                          ...prev.statusFilters,
+                          paid: !prev.statusFilters?.paid,
+                        },
+                        currentPage: 1, // Reset page when filters change
+                      }))
+                    }
+                  />
+                  <span className="ml-1">Paid</span>
+                </label>
+
+                <label className="inline-flex items-center space-x-1">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={statusFilters?.pending || false}
+                    onChange={() =>
+                      setQueryParams((prev) => ({
+                        ...prev,
+                        statusFilters: {
+                          ...prev.statusFilters,
+                          pending: !prev.statusFilters?.pending,
+                        },
+                        currentPage: 1, // Reset page when filters change
+                      }))
+                    }
+                  />
+                  <span className="ml-1">Pending</span>
+                </label>
+
+                <label className="inline-flex items-center space-x-1">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={statusFilters?.['not paid'] || false}
+                    onChange={() =>
+                      setQueryParams((prev) => ({
+                        ...prev,
+                        statusFilters: {
+                          ...prev.statusFilters,
+                          ['not paid']: !prev.statusFilters?.['not paid'],
+                        },
+                        currentPage: 1, // Reset page when filters change
+                      }))
+                    }
+                  />
+                  <span className="ml-1">Not Paid</span>
+                </label>
+              </div>
+              {isFetching && (
+                <LoadingSpinner small message="Fetching new invoices..." />
+              )}
             </div>
-            <button
-              onClick={() =>
-                alert('Functionality to create invoice coming soon!')
-              }
-              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-            >
-              Create New Invoice
-            </button>
           </div>
+        </div>
 
-          <InvoiceTable
-            headers={headers}
-            loadingInvoices={loadingInvoices} // Pass the correct loading state
-            data={filteredInvoices}
-            onEdit={handleEditClick}
-            onPaid={handlePaidClick}
-            defaultRowsPerPage={rowsPerPage}
-          />
+        <InvoiceTable
+          headers={headers} // ✅ Headers properly included!
+          data={invoices}
+          isFetching={isFetching}
+          defaultRowsPerPage={limit || 20}
+          loadingInvoices={loadingInvoices}
+          totalInvoices={totalInvoices}
+          onEdit={(invoice) => setSelectedInvoice(invoice)} // Example status change
+          onPaid={(invoiceId, customerName, newStatus) =>
+            handleStatusChange(invoiceId, customerName || '', newStatus)
+          }
+          pagination={{
+            currentPage,
+            hasNextPage,
+            hasPreviousPage,
+            onPageChange: handleNextPage,
+            onPreviousPage: handlePreviousPage,
+            limit: limit || 50,
+            onRowsPerPageChange: handleRowsPerPageChange,
+          }}
+        />
 
+        {/* Sidebar Component */}
+        {selectedInvoice && (
           <InvoiceSidebar
             selectedInvoice={selectedInvoice}
-            onSave={(updatedInvoice: Invoice) => {
+            onSave={(updatedInvoice) => {
               handleStatusChange(
                 updatedInvoice.userId,
-                updatedInvoice?.customerName || '',
+                updatedInvoice.customerName || '',
                 updatedInvoice.status || 'pending',
               );
             }}
             onClose={handleCloseSidebar}
           />
-        </>
-      )}
+        )}
+      </>
     </div>
   );
 };

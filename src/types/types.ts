@@ -6,11 +6,12 @@ export interface FileObject {
   lastModified?: string;
 }
 
-// export interface ExcelRow {
-//   column1: string;
-//   column2: number;
-//   // Add more columns as needed based on your data
-// }
+export interface FetchInvoicesParams {
+  limit?: number;
+  lastKey?: string | null;
+  selectedMonthYear?: string;
+  statusFilters?: Record<string, boolean>;
+}
 
 export type CellValue = string | number | boolean | undefined;
 
@@ -24,10 +25,20 @@ export interface Update {
   value: CellValue;
 }
 
+export interface Pagination {
+  nextPage: number | null;
+  page: number;
+  limit: number | undefined;
+  hasNextPage?: boolean;
+  lastKey?: string | null;
+  totalInvoices: number;
+}
+
 // src/types/invoices.ts
 export interface InvoicesData {
   invoices: Invoice[];
   metrics: any; // Replace 'any' with a more specific type if available
+  pagination: Pagination;
 }
 
 export interface Invoice {

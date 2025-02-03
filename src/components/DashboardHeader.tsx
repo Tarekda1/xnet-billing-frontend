@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useReducer, useState } from 'react';
 import { useInvoiceQuery } from '../api/invoiceQueries';
 import { FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
 import { Invoice } from '../types/types';
+import { useInvoiceContext } from '../context/InvoiceContext';
 
 const DashboardHeader: React.FC<{ userName: string }> = ({ userName }) => {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const { stats, data: invoices, isLoading, isError } = useInvoiceQuery();
+  const { queryParams } = useInvoiceContext();
+  const { data, isLoading, isError } = useInvoiceQuery(queryParams);
 
   if (isLoading) return <div>Loading...</div>;
   if (isError) return <div>Error loading stats</div>;
@@ -13,9 +15,7 @@ const DashboardHeader: React.FC<{ userName: string }> = ({ userName }) => {
   const filteredInvoices =
     selectedStatus === null
       ? []
-      : invoices?.invoices.filter(
-          (invoice) => invoice.status === selectedStatus,
-        );
+      : data?.invoices?.filter((invoice) => invoice.status === selectedStatus);
 
   return (
     <div>
@@ -37,7 +37,7 @@ const DashboardHeader: React.FC<{ userName: string }> = ({ userName }) => {
           >
             <FaCheckCircle className="text-white text-3xl mb-2" />
             <p className="font-bold text-lg">Paid</p>
-            <p>{stats.paid}</p>
+            <p>{data?.metrics.paid}</p>
           </div>
           <div
             className="flex-1 bg-yellow-500 text-center py-4 rounded-lg shadow hover:bg-yellow-600 cursor-pointer flex flex-col items-center"
@@ -45,7 +45,7 @@ const DashboardHeader: React.FC<{ userName: string }> = ({ userName }) => {
           >
             <FaClock className="text-white text-3xl mb-2" />
             <p className="font-bold text-lg">Pending</p>
-            <p>{stats.pending}</p>
+            <p>{data?.metrics.pending}</p>
           </div>
           <div
             className="flex-1 bg-red-500 text-center py-4 rounded-lg shadow hover:bg-red-600 cursor-pointer flex flex-col items-center"
@@ -53,7 +53,7 @@ const DashboardHeader: React.FC<{ userName: string }> = ({ userName }) => {
           >
             <FaTimesCircle className="text-white text-3xl mb-2" />
             <p className="font-bold text-lg">Not Paid</p>
-            <p>{stats.notPaid}</p>
+            <p>{data?.metrics.notPaid}</p>
           </div>
         </div>
       </div>

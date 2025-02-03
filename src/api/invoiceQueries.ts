@@ -1,24 +1,86 @@
 // src/api/invoiceQueries.ts
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import apiClient from './client';
-import { Invoice, InvoicesData } from '../types/types';
+import {
+  FetchInvoicesParams,
+  Invoice,
+  InvoicesData,
+  Pagination,
+} from '../types/types';
 import { notify } from '../utils/toastUtils';
 import { useMemo } from 'react';
 
-// Function to fetch invoices
-const fetchInvoices = async (): Promise<InvoicesData> => {
-  const response = await apiClient.get('/invoices/list');
+interface Metrics {
+  paid: number;
+  pending: number;
+  notPaid: number;
+  total: number;
+  totalRevenue: number;
+  outstandingBalance: number;
+  invoicesDueSoon: number;
+  overdueInvoices: number;
+}
+
+export interface InvoiceResponse {
+  message: string;
+  invoices: Invoice[];
+  metrics: Metrics;
+  pagination: Pagination;
+}
+
+const fetchInvoices = async ({
+  limit = 20,
+  lastKey = null,
+  selectedMonthYear = '',
+  statusFilters = {},
+}: FetchInvoicesParams): Promise<InvoicesData> => {
+  const params: Record<string, string> = { limit: limit.toString() };
+
+  if (lastKey) {
+    params.lastKey = lastKey;
+  }
+
+  if (selectedMonthYear) {
+    params.selectedMonthYear = selectedMonthYear;
+  }
+
+  // Ensure statusFilters is always defined and is an object
+  if (statusFilters && Object.keys(statusFilters).length > 0) {
+    // Extract active statuses (where the value is true)
+    const activeStatuses = Object.entries(statusFilters)
+      .filter(([_, isActive]) => isActive)
+      .map(([status]) => status);
+
+    if (activeStatuses.length > 0) {
+      params.status = activeStatuses.join(',');
+    }
+  }
+
+  const response = await apiClient.get<InvoicesData>(
+    '/invoices/list', // Replace with your actual API endpoint
+    { params },
+  );
+
   return response.data;
 };
 
-// React Query hook to fetch invoices with optimized configurations
-export const useInvoiceQuery = () => {
-  const query = useQuery<InvoicesData>('invoices', fetchInvoices, {
-    staleTime: 1000 * 60 * 10, // 10 minutes
-    cacheTime: 1000 * 60 * 60, // 1 hour
-    refetchOnMount: false, // Do not refetch on mount if data is fresh
-    refetchOnWindowFocus: false, // Do not refetch on window focus
-  });
+export const useInvoiceQuery = ({
+  limit = 20,
+  lastKey = null,
+  selectedMonthYear = '',
+  statusFilters = {},
+}: FetchInvoicesParams) => {
+  const query = useQuery<InvoicesData, Error>(
+    ['invoices', { limit, lastKey, selectedMonthYear, statusFilters }],
+    () => fetchInvoices({ limit, lastKey, selectedMonthYear, statusFilters }),
+    {
+      staleTime: 1000 * 60 * 10, // 10 minutes
+      cacheTime: 1000 * 60 * 60, // 1 hour
+      keepPreviousData: true, // Maintains previous data while fetching new data
+      refetchOnMount: false, // Do not refetch on mount if data is fresh
+      refetchOnWindowFocus: false, // Do not refetch on window focus
+    },
+  );
 
   // Use useMemo to calculate stats efficiently
   const stats = useMemo(() => {

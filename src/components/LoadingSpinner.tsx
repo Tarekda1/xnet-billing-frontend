@@ -7,7 +7,9 @@ interface LoadingSpinnerProps {
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message, small }) => {
   return (
-    <div className="flex justify-center items-center h-40">
+    <div
+      className={`flex justify-center items-center ${small ? 'h-4' : 'h-20'}`}
+    >
       <div
         className={`animate-spin rounded-full border-2 border-t-2 ${
           small ? 'h-4 w-4' : 'h-6 w-6'
