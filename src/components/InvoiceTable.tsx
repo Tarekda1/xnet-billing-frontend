@@ -171,6 +171,37 @@ const InvoiceTable: React.FC<TableProps> = ({
     }).format(date);
   };
 
+  const VirtualRow = React.memo<{ virtualRow: any; row: any }>(
+    ({ virtualRow, row }) => (
+      <div
+        key={`${row.original.userId}-${row.original.customerName}`} // row.id corresponds to userId
+        style={{
+          position: 'absolute',
+          top: `${virtualRow.start}px`,
+          left: 0,
+          right: 0,
+          height: `${virtualRow.size}px`,
+          transition: 'top 0.2s ease, height 0.2s ease', // Smooth transitions
+        }}
+        className={`flex flex-wrap items-center border-b ${
+          virtualRow.index % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+        } hover:bg-gray-100`}
+      >
+        {row.getVisibleCells().map((cell: any) => (
+          <div
+            key={cell.id}
+            className="py-2 px-4 text-sm text-gray-800 flex-shrink flex-grow break-words  virtual-row"
+            style={{ flex: '1 1 0' }}
+          >
+            {typeof cell.column.columnDef.cell === 'function'
+              ? cell.column.columnDef.cell(cell.getContext())
+              : cell.column.columnDef.cell}
+          </div>
+        ))}
+      </div>
+    ),
+  );
+
   useEffect(() => {
     if (parentRef.current) {
       parentRef.current.scrollTop = parentRef.current.scrollHeight;
@@ -337,8 +368,13 @@ const InvoiceTable: React.FC<TableProps> = ({
   const rowVirtualizer = useVirtualizer({
     count: table.getRowModel().rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60, // Adjust based on your actual row height
-    overscan: pagination.limit,
+    estimateSize: (index) => {
+      // Dynamically calculate row height if needed
+      const row = data[index];
+      return row?.customerName ? 60 : 60; // Example dynamic height
+    },
+    overscan: 15,
+    scrollPaddingEnd: 10, // Add padding at bottom
   });
 
   useEffect(() => {
@@ -348,72 +384,84 @@ const InvoiceTable: React.FC<TableProps> = ({
   return (
     <div>
       {/* Card/List View for screens below 992px */}
-      <div className="custom:hidden">
+      <div className="custom:hidden w-full space-y-2">
         {data.map((invoice) => (
           <div
-            key={`${invoice.userId}-${invoice.customerName}`} // Ensure using a unique key
-            className="border rounded p-4 my-2 bg-white shadow"
+            key={`${invoice.userId}-${invoice.customerName}`}
+            className="w-full max-w-screen xs:max-w-[calc(100vw-120px)] custom:w-auto mx-auto my-3
+             bg-white shadow-md rounded-lg p-4 border border-gray-100 box-border"
           >
-            <div>
-              <strong>User ID:</strong> {invoice.userId}
-            </div>
-            <div>
-              <strong>Amount:</strong> {formatCurrency(invoice.amount || 0)}
-            </div>
-            <div>
-              <strong>Invoice Date:</strong>{' '}
-              {formatDate(invoice.invoiceDate || '')}
-            </div>
-            <div>
-              <strong>Status:</strong>
-              <select
-                value={localStatuses[invoice.userId]?.toLowerCase() || ''}
-                onChange={(e) => {
-                  handleStatusChange(
-                    invoice.userId,
-                    invoice.customerName || '',
-                    e.target.value,
-                  );
-                }}
-                className="border border-gray-300 rounded px-2 py-1 text-sm ml-2"
-              >
-                <option value="paid">Paid</option>
-                <option value="not paid">Not Paid</option>
-                <option value="pending">Pending</option>
-              </select>
-            </div>
-            <div className="flex space-x-2 mt-2">
-              {loadingInvoices[invoice.userId] ? (
-                <LoadingSpinner small />
-              ) : (
-                <>
-                  <button
-                    onClick={() => onEdit(invoice)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <FaEdit size={16} />
-                  </button>
-                  <button
-                    onClick={
-                      () =>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="font-semibold text-gray-600">User ID:</div>
+                <div className="text-gray-800 break-all">{invoice.userId}</div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="font-semibold text-gray-600">Amount:</div>
+                <div className="text-green-600 font-medium">
+                  {formatCurrency(invoice.amount || 0)}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="font-semibold text-gray-600">Invoice Date:</div>
+                <div className="text-gray-700">
+                  {formatDate(invoice.invoiceDate || '')}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="font-semibold text-gray-600">Status:</div>
+                <select
+                  value={localStatuses[invoice.userId]?.toLowerCase() || ''}
+                  onChange={(e) => {
+                    handleStatusChange(
+                      invoice.userId,
+                      invoice.customerName || '',
+                      e.target.value,
+                    );
+                  }}
+                  className="w-full sm:w-48 mt-1 sm:mt-0 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="paid">Paid</option>
+                  <option value="not paid">Not Paid</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-end mt-4">
+                {loadingInvoices[invoice.userId] ? (
+                  <LoadingSpinner small />
+                ) : (
+                  <>
+                    <button
+                      onClick={() => onEdit(invoice)}
+                      className="p-2 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors"
+                    >
+                      <FaEdit className="text-blue-600" size={16} />
+                    </button>
+                    <button
+                      onClick={() =>
                         handleStatusChange(
                           invoice.userId,
                           invoice.customerName || '',
                           'paid',
-                        ) // Replace with desired status
-                    }
-                    className="text-green-600 hover:text-green-800"
-                  >
-                    <FaSave size={16} />
-                  </button>
-                  <button
-                    onClick={() => onDelete(invoice.userId)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <FaTrash size={16} />
-                  </button>
-                </>
-              )}
+                        )
+                      }
+                      className="p-2 bg-green-100 hover:bg-green-200 rounded-full transition-colors"
+                    >
+                      <FaSave className="text-green-600" size={16} />
+                    </button>
+                    <button
+                      onClick={() => onDelete(invoice.userId)}
+                      className="p-2 bg-red-100 hover:bg-red-200 rounded-full transition-colors"
+                    >
+                      <FaTrash className="text-red-600" size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -471,44 +519,24 @@ const InvoiceTable: React.FC<TableProps> = ({
           {data.length === 0 ? (
             <div className="text-center p-4">No invoices available.</div>
           ) : (
-            <div className="relative scroll-smooth">
+            <div className="relative scroll-smooth relative will-change-transform">
               <div
                 ref={parentRef}
                 className="h-[550px] overflow-y-auto"
                 style={{
                   position: 'relative',
+                  overflowAnchor: 'none',
                 }}
               >
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                   const row = table.getRowModel().rows[virtualRow.index];
-                  if (!row) return null;
-                  return (
-                    <div
-                      key={`${row.original.userId}-${row.original.customerName}`} // row.id corresponds to userId
-                      style={{
-                        position: 'absolute',
-                        top: `${virtualRow.start}px`,
-                        left: 0,
-                        right: 0,
-                        height: `${virtualRow.size}px`,
-                      }}
-                      className={`flex flex-wrap items-center border-b ${
-                        virtualRow.index % 2 === 0 ? 'bg-gray-50' : 'bg-white'
-                      } hover:bg-gray-100`}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <div
-                          key={cell.id}
-                          className="py-2 px-4 text-sm text-gray-800 flex-shrink flex-grow break-words"
-                          style={{ flex: '1 1 0' }}
-                        >
-                          {typeof cell.column.columnDef.cell === 'function'
-                            ? cell.column.columnDef.cell(cell.getContext())
-                            : cell.column.columnDef.cell}
-                        </div>
-                      ))}
-                    </div>
-                  );
+                  return row ? (
+                    <VirtualRow
+                      key={virtualRow.key}
+                      virtualRow={virtualRow}
+                      row={row}
+                    />
+                  ) : null;
                 })}
               </div>
               {false && (

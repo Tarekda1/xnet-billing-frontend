@@ -36,3 +36,14 @@
     transform: rotate(360deg);
   }
 }
+
+/* Smooth scrolling container */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* Hardware acceleration for virtual rows */
+.virtual-row {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

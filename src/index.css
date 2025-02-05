@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* index.css */
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+#root {
+  height: 100dvh; /* Use dvh for dynamic viewport units */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 
 /* Add this in a global CSS file or as inline styles */
 .loader {
@@ -18,4 +45,4 @@
     .grid-cols-4 {
       grid-template-columns: repeat(1, minmax(0, 1fr));
     }
-  }
+}

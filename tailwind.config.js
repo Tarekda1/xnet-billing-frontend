@@ -4,7 +4,13 @@ module.exports = {
   theme: {
     extend: {
       screens: {
-        custom: '992px', // new breakpoint at 992px
+        xs: '375px', // Small phones
+        sm: '640px', // Large phones
+        md: '768px', // Tablets
+        lg: '1024px', // Small laptops
+        xl: '1280px', // Desktop
+        '2xl': '1536px', // Large screens
+        custom: '992px', // Your custom breakpoint
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

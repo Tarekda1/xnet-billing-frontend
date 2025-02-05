@@ -12,7 +12,7 @@ const MonthYearSelector = ({
       id="monthYear"
       value={value}
       onChange={onChange}
-      className="mt-1 block w-full py-1 px-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      className="w-full sm:w-48 mt-1 block py-1 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
     >
       <option value="">All</option>
       {options.map((option) => (

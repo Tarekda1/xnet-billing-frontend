@@ -202,14 +202,14 @@ const InvoiceList: React.FC = () => {
   return (
     <div className="mx-auto relative">
       <>
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex justify-between items-center mb-4">
-            {/* Filter Box: Includes Month/Year Dropdown & Status Checkboxes Horizontally */}
-            <div className="border border-gray-300 rounded-lg p-3 bg-white shadow-md flex items-center space-x-6">
-              {/* Filter by Month/Year */}
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
-                  Filter by Month/Year:
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          {/* Filter Container */}
+          <div className="w-full max-w-screen overflow-hidden bg-white shadow-md rounded-lg border border-gray-300 p-2 sm:p-3">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
+              {/* Month/Year Filter */}
+              <div className="w-full md:w-auto flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-sm text-gray-600 font-medium shrink-0">
+                  Month/Year:
                 </label>
                 <MonthYearSelector
                   value={selectedMonthYear || ''}
@@ -218,79 +218,55 @@ const InvoiceList: React.FC = () => {
                     setQueryParams({
                       ...queryParams,
                       selectedMonthYear: e.target.value,
-                      currentPage: 1, // Reset page when filters change
+                      currentPage: 1,
                     })
                   }
                 />
               </div>
 
-              {/* Filter by Status */}
-              <div className="flex items-center space-x-4">
-                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
-                  Filter by Status:
-                </label>
-
-                <label className="inline-flex items-center space-x-1">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox"
-                    checked={statusFilters?.paid || false}
-                    onChange={() =>
-                      setQueryParams((prev) => ({
-                        ...prev,
-                        statusFilters: {
-                          ...prev.statusFilters,
-                          paid: !prev.statusFilters?.paid,
-                        },
-                        currentPage: 1, // Reset page when filters change
-                      }))
-                    }
-                  />
-                  <span className="ml-1">Paid</span>
-                </label>
-
-                <label className="inline-flex items-center space-x-1">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox"
-                    checked={statusFilters?.pending || false}
-                    onChange={() =>
-                      setQueryParams((prev) => ({
-                        ...prev,
-                        statusFilters: {
-                          ...prev.statusFilters,
-                          pending: !prev.statusFilters?.pending,
-                        },
-                        currentPage: 1, // Reset page when filters change
-                      }))
-                    }
-                  />
-                  <span className="ml-1">Pending</span>
-                </label>
-
-                <label className="inline-flex items-center space-x-1">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox"
-                    checked={statusFilters?.['not paid'] || false}
-                    onChange={() =>
-                      setQueryParams((prev) => ({
-                        ...prev,
-                        statusFilters: {
-                          ...prev.statusFilters,
-                          ['not paid']: !prev.statusFilters?.['not paid'],
-                        },
-                        currentPage: 1, // Reset page when filters change
-                      }))
-                    }
-                  />
-                  <span className="ml-1">Not Paid</span>
-                </label>
+              {/* Status Filters */}
+              <div className="w-full md:w-auto flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <span className="text-sm text-gray-600 font-medium shrink-0">
+                  Status:
+                </span>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 w-full">
+                  {['paid', 'pending', 'not paid'].map((status) => (
+                    <label
+                      key={status}
+                      className="flex items-center space-x-2 p-2 rounded-lg bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all duration-150 active:scale-[0.98]"
+                    >
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-5 w-5 text-blue-600 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        checked={statusFilters?.[status] || false}
+                        onChange={() =>
+                          setQueryParams((prev) => ({
+                            ...prev,
+                            statusFilters: {
+                              ...prev.statusFilters,
+                              [status]: !prev.statusFilters?.[status],
+                            },
+                            currentPage: 1,
+                          }))
+                        }
+                      />
+                      <span className="capitalize text-sm font-medium text-gray-700">
+                        {status}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-              {isFetching && (
-                <LoadingSpinner small message="Fetching new invoices..." />
-              )}
             </div>
+
+            {/* Loading Spinner - Mobile positioned at bottom */}
+            {true && (
+              <div className="relative">
+                <div className="mt-3 sm:mt-0 sm:absolute sm:right-4 sm:top-3  md:top-[50%] md:mt-[-27px]">
+                  <LoadingSpinner small message="Fetching..." />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
