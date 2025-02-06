@@ -6,7 +6,7 @@ interface Notification {
   message: string;
 }
 
-const NotificationButton: React.FC = () => {
+const NotificationButton: React.FC<{ className: string }> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     { id: 1, message: 'You have a new message!' },
@@ -48,11 +48,11 @@ const NotificationButton: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       {/* Notification Bell */}
       <button
         onClick={togglePopup}
-        className="relative p-2 bg-gray-200 rounded-full hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none"
+        className={`relative p-2 bg-gray-200 rounded-full hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none`}
         aria-label="Notifications"
       >
         <FaBell className="text-gray-700 dark:text-gray-300" size={20} />

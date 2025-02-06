@@ -260,7 +260,7 @@ const InvoiceList: React.FC = () => {
             </div>
 
             {/* Loading Spinner - Mobile positioned at bottom */}
-            {true && (
+            {isFetching && (
               <div className="relative">
                 <div className="mt-3 sm:mt-0 sm:absolute sm:right-4 sm:top-3  md:top-[50%] md:mt-[-27px]">
                   <LoadingSpinner small message="Fetching..." />

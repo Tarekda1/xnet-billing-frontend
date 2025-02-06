@@ -388,7 +388,7 @@ const InvoiceTable: React.FC<TableProps> = ({
         {data.map((invoice) => (
           <div
             key={`${invoice.userId}-${invoice.customerName}`}
-            className="w-full max-w-screen xs:max-w-[calc(100vw-120px)] custom:w-auto mx-auto my-3
+            className="w-full max-w-screen xs:w-full custom:w-auto mx-auto my-3
              bg-white shadow-md rounded-lg p-4 border border-gray-100 box-border"
           >
             <div className="space-y-2">
