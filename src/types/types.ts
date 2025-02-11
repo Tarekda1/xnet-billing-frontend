@@ -11,6 +11,7 @@ export interface FetchInvoicesParams {
   lastKey?: string | null;
   selectedMonthYear?: string;
   statusFilters?: Record<string, boolean>;
+  page?: number;
 }
 
 export type CellValue = string | number | boolean | undefined;

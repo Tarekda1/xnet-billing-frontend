@@ -21,14 +21,74 @@ body {
   overflow: hidden;
 }
 
-#root {
-  height: 100dvh; /* Use dvh for dynamic viewport units */
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+:root{
+  --sidebar-width:4rem;
 }
 
+.grid-container {
+  display: grid;
+  grid-template-rows: auto 1fr; /* Navbar + Sidebar/Main Content */
+  grid-template-columns: var(--sidebar-width) 1fr; /* Sidebar + Main Content */
+  height: 100vh; /* Full viewport height */
+}
+
+.navbar {
+  grid-column: span 2; /* Span across both columns */
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  z-index: 10;
+}
+
+.sidebar-collapsed .grid-container {
+  --sidebar-width: 80px; /* Collapsed sidebar width */
+}
+
+.main-content {
+  overflow-y: auto; /* Enable scrolling within the main content */
+}
+
+/* index.css */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.3s ease-in-out;
+}
+
+/* index.css */
+@media (max-width: 768px) {
+  .grid-container {
+    grid-template-columns: 1fr; /* Stack Sidebar and Main Content vertically */
+    grid-template-rows: auto auto 1fr; /* Navbar, Sidebar, Main Content */
+  }
+
+  .sidebar {
+    --sidebar-width: 100%; /* Full width on small screens */
+  }
+}
+
+/* index.css */
+@media (max-width: 640px) {
+  .navbar .flex-wrap {
+    flex-direction: column; /* Stack items vertically */
+    align-items: flex-end; /* Align items to the right */
+  }
+
+  .navbar .flex-wrap > * {
+    margin-bottom: 0.5rem; /* Add spacing between stacked items */
+  }
+}
+
+/* index.css */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
 /* Add this in a global CSS file or as inline styles */
 .loader {

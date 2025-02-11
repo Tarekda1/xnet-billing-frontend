@@ -9,20 +9,18 @@ import {
   ColumnDef,
   SortingState,
 } from '@tanstack/react-table';
-import { Invoice } from '../types/types';
-import LoadingSpinner from '../components/LoadingSpinner'; // Ensure correct import
+import { Invoice } from '../../types/types';
+import LoadingSpinner from '../../components/LoadingSpinner'; // Ensure correct import
 import {
   FaEdit,
   FaSave,
   FaTrash,
   FaArrowLeft,
   FaArrowRight,
-  FaAngleDoubleLeft,
-  FaAngleDoubleRight,
   FaArrowDown,
 } from 'react-icons/fa';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useInvoiceStatus } from '../context/InvoiceStatusContext';
+import { useInvoiceStatus } from '../../context/InvoiceStatusContext';
 
 type LoadingInvoices = { [key: string]: boolean };
 
@@ -173,32 +171,27 @@ const InvoiceTable: React.FC<TableProps> = ({
 
   const VirtualRow = React.memo<{ virtualRow: any; row: any }>(
     ({ virtualRow, row }) => (
-      <div
-        key={`${row.original.userId}-${row.original.customerName}`} // row.id corresponds to userId
+      <tr
+        key={`${row.original.userId}-${row.original.customerName}`} // Unique key based on userId and customerName
         style={{
-          position: 'absolute',
-          top: `${virtualRow.start}px`,
-          left: 0,
-          right: 0,
-          height: `${virtualRow.size}px`,
+          height: `${virtualRow.size}px`, // Dynamic row height
           transition: 'top 0.2s ease, height 0.2s ease', // Smooth transitions
         }}
-        className={`flex flex-wrap items-center border-b ${
+        className={`border-b ${
           virtualRow.index % 2 === 0 ? 'bg-gray-50' : 'bg-white'
-        } hover:bg-gray-100`}
+        } hover:bg-gray-100 w-full`}
       >
         {row.getVisibleCells().map((cell: any) => (
-          <div
+          <td
             key={cell.id}
-            className="py-2 px-4 text-sm text-gray-800 flex-shrink flex-grow break-words  virtual-row"
-            style={{ flex: '1 1 0' }}
+            className="py-2 px-4 text-sm text-gray-800 break-words"
           >
             {typeof cell.column.columnDef.cell === 'function'
               ? cell.column.columnDef.cell(cell.getContext())
-              : cell.column.columnDef.cell}
-          </div>
+              : cell.renderValue()}
+          </td>
         ))}
-      </div>
+      </tr>
     ),
   );
 
@@ -382,7 +375,7 @@ const InvoiceTable: React.FC<TableProps> = ({
   }, [data]);
 
   return (
-    <div>
+    <div className="h-full">
       {/* Card/List View for screens below 992px */}
       <div className="custom:hidden w-full space-y-2">
         {data.map((invoice) => (
@@ -495,106 +488,104 @@ const InvoiceTable: React.FC<TableProps> = ({
         </div>
       </div>
 
-      {/* Table View for screens 992px and above */}
-      <div className="hidden custom:block overflow-x-auto w-full">
-        <div>
-          <div className="min-w-full bg-gray-100 border-b sticky top-0 z-10">
-            <div className="flex flex-wrap">
+      <div className="hidden custom:block overflow-y-auto w-full h-full">
+        {/* Table Container */}
+        <table className="min-w-full bg-gray-100 border-b sticky top-0 z-10">
+          {/* Table Header */}
+          <thead>
+            <tr>
               {table.getHeaderGroups().map((headerGroup) =>
                 headerGroup.headers.map((header) => (
-                  <div
+                  <th
                     key={header.id}
-                    className="py-2 px-2 text-gray-800 text-left text-xs uppercase font-semibold flex-shrink flex-grow break-words"
+                    className="py-2 px-2 text-gray-800 text-left text-xs uppercase font-semibold break-words"
                     style={{ flex: '1 1 0' }}
                   >
                     {typeof header.column.columnDef.header === 'function'
                       ? header.column.columnDef.header(header.getContext())
                       : header.column.columnDef.header}
-                  </div>
+                  </th>
                 )),
               )}
-            </div>
-          </div>
+            </tr>
+          </thead>
 
-          {data.length === 0 ? (
-            <div className="text-center p-4">No invoices available.</div>
-          ) : (
-            <div className="relative scroll-smooth relative will-change-transform">
-              <div
-                ref={parentRef}
-                className="h-[550px] overflow-y-auto"
-                style={{
-                  position: 'relative',
-                  overflowAnchor: 'none',
-                }}
+          {/* Table Body */}
+          <tbody>
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} className="text-center p-4">
+                  No invoices available.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {table
+                  .getRowModel()
+                  .rows.map((virtualRow) =>
+                    virtualRow ? (
+                      <VirtualRow
+                        key={`${virtualRow.original.userId}-${virtualRow.original.customerName}`}
+                        virtualRow={virtualRow}
+                        row={virtualRow}
+                      />
+                    ) : null,
+                  )}
+                {false && (
+                  <button
+                    onClick={scrollToBottom}
+                    className="fixed bottom-[30px] right-[60px] bg-blue-500 text-white px-2 py-2 rounded-full shadow-md hover:bg-blue-600 transition"
+                  >
+                    <FaArrowDown />
+                  </button>
+                )}
+              </>
+            )}
+          </tbody>
+        </table>
+
+        {/* Enhanced Pagination Controls for Table View */}
+        <div className="flex flex-col sm:flex-row justify-start items-center mt-4 space-y-2 sm:space-y-0">
+          {/* Display current range */}
+          <span className="text-gray-700 font-semibold basis-[40%]">
+            Showing {startNumber} - {endNumber} of {totalInvoices} invoices
+          </span>
+
+          {/* Pagination Buttons */}
+          <div className="flex items-center space-x-2 basis-[50%]">
+            <button
+              onClick={pagination.onPreviousPage}
+              disabled={!pagination.hasPreviousPage}
+              className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
+              aria-label="Previous Page"
+            >
+              <FaArrowLeft />
+            </button>
+            <span className="text-gray-700">Page {pagination.currentPage}</span>
+            <button
+              onClick={pagination.onPageChange}
+              disabled={pagination.hasNextPage === false}
+              className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
+              aria-label="Next Page"
+            >
+              <FaArrowRight />
+            </button>
+
+            {/* Rows per page dropdown */}
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-700">Rows per page:</span>
+              <select
+                value={pagination.limit}
+                onChange={(e) =>
+                  pagination.onRowsPerPageChange(Number(e.target.value))
+                }
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
               >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const row = table.getRowModel().rows[virtualRow.index];
-                  return row ? (
-                    <VirtualRow
-                      key={virtualRow.key}
-                      virtualRow={virtualRow}
-                      row={row}
-                    />
-                  ) : null;
-                })}
-              </div>
-              {false && (
-                <button
-                  onClick={scrollToBottom}
-                  className="fixed bottom-[30px] right-[60px] bg-blue-500 text-white px-2 py-2 rounded-full shadow-md hover:bg-blue-600 transition"
-                >
-                  <FaArrowDown />
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Enhanced Pagination Controls for Table View */}
-          <div className="flex flex-col sm:flex-row justify-start items-center mt-4 space-y-2 sm:space-y-0">
-            {/* Display current range */}
-            <span className="text-gray-700 font-semibold basis-[40%]">
-              Showing {startNumber} - {endNumber} of {totalInvoices} invoices
-            </span>
-            {/* Pagination Buttons */}
-            <div className="flex items-center space-x-2 basis-[50%]">
-              <button
-                onClick={pagination.onPreviousPage}
-                disabled={!pagination.hasPreviousPage}
-                className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-                aria-label="Previous Page"
-              >
-                <FaArrowLeft />
-              </button>
-
-              <span className="text-gray-700">
-                Page {pagination.currentPage}
-              </span>
-
-              <button
-                onClick={pagination.onPageChange}
-                disabled={pagination.hasNextPage === false}
-                className={`p-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-colors`}
-                aria-label="Next Page"
-              >
-                <FaArrowRight />
-              </button>
-              {/* Rows per page dropdown */}
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-700">Rows per page:</span>
-                <select
-                  value={pagination.limit}
-                  onChange={(e) =>
-                    pagination.onRowsPerPageChange(Number(e.target.value))
-                  }
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
-                >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
             </div>
           </div>
         </div>

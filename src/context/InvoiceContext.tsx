@@ -25,6 +25,7 @@ export const InvoiceProvider: React.FC<InvoiceProviderProps> = ({
     limit: 20,
     lastKey: null,
     selectedMonthYear: '',
+    page: 1,
     statusFilters: { paid: true, pending: true, 'not paid': true },
     currentPage: 1,
   });

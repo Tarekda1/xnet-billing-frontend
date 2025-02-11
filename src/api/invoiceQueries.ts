@@ -1,5 +1,4 @@
-// src/api/invoiceQueries.ts
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'; // Correct v4 import
 import apiClient from './client';
 import {
   FetchInvoicesParams,
@@ -8,195 +7,274 @@ import {
   Pagination,
 } from '../types/types';
 import { notify } from '../utils/toastUtils';
-import { useMemo } from 'react';
-
-interface Metrics {
-  paid: number;
-  pending: number;
-  notPaid: number;
-  total: number;
-  totalRevenue: number;
-  outstandingBalance: number;
-  invoicesDueSoon: number;
-  overdueInvoices: number;
-}
-
-export interface InvoiceResponse {
-  message: string;
-  invoices: Invoice[];
-  metrics: Metrics;
-  pagination: Pagination;
-}
+import { queryClient } from './queryClient'; // Ensure this is correctly imported
 
 const fetchInvoices = async ({
   limit = 20,
   lastKey = null,
-  selectedMonthYear = '',
-  statusFilters = {},
+  page = 1,
 }: FetchInvoicesParams): Promise<InvoicesData> => {
-  const params: Record<string, string> = { limit: limit.toString() };
+  const params: Record<string, string> = {
+    limit: limit.toString(),
+    page: page.toString(),
+  };
+  if (lastKey) params.lastKey = lastKey;
 
-  if (lastKey) {
-    params.lastKey = lastKey;
-  }
-
-  if (selectedMonthYear) {
-    params.selectedMonthYear = selectedMonthYear;
-  }
-
-  // Ensure statusFilters is always defined and is an object
-  if (statusFilters && Object.keys(statusFilters).length > 0) {
-    // Extract active statuses (where the value is true)
-    const activeStatuses = Object.entries(statusFilters)
-      .filter(([_, isActive]) => isActive)
-      .map(([status]) => status);
-
-    if (activeStatuses.length > 0) {
-      params.status = activeStatuses.join(',');
-    }
-  }
-
-  const response = await apiClient.get<InvoicesData>(
-    '/invoices/list', // Replace with your actual API endpoint
-    { params },
-  );
-
+  const response = await apiClient.get<InvoicesData>('/invoices/list', {
+    params,
+  });
   return response.data;
 };
 
 export const useInvoiceQuery = ({
   limit = 20,
   lastKey = null,
-  selectedMonthYear = '',
-  statusFilters = {},
+  page = 1,
 }: FetchInvoicesParams) => {
-  const query = useQuery<InvoicesData, Error>(
-    ['invoices', { limit, lastKey, selectedMonthYear, statusFilters }],
-    () => fetchInvoices({ limit, lastKey, selectedMonthYear, statusFilters }),
-    {
-      staleTime: 1000 * 60 * 10, // 10 minutes
-      cacheTime: 1000 * 60 * 60, // 1 hour
-      keepPreviousData: true, // Maintains previous data while fetching new data
-      refetchOnMount: false, // Do not refetch on mount if data is fresh
-      refetchOnWindowFocus: false, // Do not refetch on window focus
-    },
-  );
-
-  // Use useMemo to calculate stats efficiently
-  const stats = useMemo(() => {
-    if (!query.data) {
-      return {
-        paid: 0,
-        pending: 0,
-        notPaid: 0,
-        total: 0,
-        totalRevenue: 0,
-        outstandingBalance: 0,
-        invoicesDueSoon: 0,
-        overdueInvoices: 0,
-      };
-    }
-
-    const { invoices, metrics } = query.data;
-
-    const paid = invoices.filter(
-      (invoice: Invoice) => invoice.status?.toLowerCase() === 'paid',
-    ).length;
-
-    const pending = invoices.filter(
-      (invoice: Invoice) => invoice.status?.toLowerCase() === 'pending',
-    ).length;
-
-    const notPaid = invoices.filter(
-      (invoice: Invoice) => invoice.status?.toLowerCase() === 'not_paid',
-    ).length;
-
-    return {
-      paid,
-      pending,
-      notPaid,
-      total: invoices.length,
-      totalRevenue: metrics.totalRevenue || 0,
-      outstandingBalance: metrics.outstandingBalance || 0,
-      invoicesDueSoon: metrics.invoicesDueSoon || 0,
-      overdueInvoices: metrics.overdueInvoices.length || 0,
-    };
-  }, [query.data]);
+  // const query = useQuery(
+  //   ['invoices', page, limit, lastKey], // Query key
+  //   () => fetchInvoices({ limit, lastKey, page }), // Query function
+  //   {
+  //     staleTime: 1000 * 60 * 10, // 10 minutes
+  //     cacheTime: 1000 * 60 * 60, // 1 hour
+  //     keepPreviousData: true,
+  //     refetchOnMount: 'always', // Ensure it's always refetched on mount
+  //     refetchOnWindowFocus: false, // Don't refetch on window focus
+  //   }
+  // );
+  const query = useQuery({
+    queryKey: ['invoices', page, limit, lastKey],
+    queryFn: () => fetchInvoices({ page, limit, lastKey }),
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60, // Renamed from cacheTime to gcTime in v4
+    // Optional: Add keepPreviousData for better pagination UX
+  });
 
   return {
-    ...query,
+    ...query, // Contains isLoading, isFetching, etc.
     invoices: query.data?.invoices || [],
-    metrics: query.data?.metrics || {},
-    stats,
   };
 };
 
-// Function to update invoices
-const updateInvoice = async (payload: {
-  updatedData: Partial<Invoice>[];
-}): Promise<Invoice[]> => {
-  const response = await apiClient.post('/invoices/update', payload);
-  return response.data;
+const updateInvoice = async (payload: { updatedInvoices: Invoice[] }) => {
+  console.log(`payload`, payload);
+  const response = await apiClient.post('/invoices/update', {
+    updatedData: payload.updatedInvoices,
+  });
+  return response.data; // ✅ Ensure API returns { message: string; updatedInvoices: Invoice[] }
 };
 
-// React Query hook to update invoices with optimized cache updates
-export const useUpdateInvoiceQuery = () => {
+export const useUpdateInvoiceQuery = (
+  limit: number,
+  page: number,
+  lastKey: string | null,
+) => {
   const queryClient = useQueryClient();
 
   return useMutation<
-    Invoice[], // Expected data type returned by the mutation
-    Error, // Error type
-    { updatedData: Partial<Invoice>[] }, // Variables (payload)
-    { previousData?: InvoicesData } // Context type
-  >(updateInvoice, {
-    onMutate: async ({ updatedData }) => {
-      const invoiceToUpdate = updatedData[0];
-      const invoiceId = invoiceToUpdate.userId; // Use invoiceId
-      const newStatus = invoiceToUpdate.status;
+    { message: string; updatedInvoices: (Invoice | undefined)[] }, // ✅ Expected response type
+    Error,
+    {
+      updatedData: {
+        message: string;
+        updatedInvoices: Invoice[];
+      };
+    }, // ✅ Expected mutation variables
+    { previousData?: InvoicesData } // ✅ Context type for optimistic updates
+  >({
+    mutationFn: async ({ updatedData }) => {
+      const response = await updateInvoice({
+        updatedInvoices: updatedData.updatedInvoices,
+      });
 
-      // Cancel any outgoing refetches to prevent them from overwriting our optimistic update
-      await queryClient.cancelQueries('invoices');
-
-      // Snapshot the previous data
-      const previousData = queryClient.getQueryData<InvoicesData>('invoices');
-
-      // Optimistically update the cache
-      if (previousData) {
-        queryClient.setQueryData<InvoicesData>('invoices', {
-          ...previousData,
-          invoices: previousData.invoices.map((invoice) =>
-            invoice.userId === invoiceId
-              ? { ...invoice, status: newStatus }
-              : invoice,
-          ),
-        });
-      } else {
-        console.error('No invoices found in cache');
+      if (!response) {
+        throw new Error('Invalid API response');
       }
 
-      // Return the context with the previous data for rollback in case of error
-      return { previousData };
+      return response; // ✅ Ensure correct structure is returned
     },
     onError: (err, variables, context) => {
-      // Revert to the previous data if the mutation fails
+      const queryKey = ['invoices', page, limit, lastKey];
       if (context?.previousData) {
-        queryClient.setQueryData<InvoicesData>(
-          'invoices',
-          context.previousData,
-        );
+        queryClient.setQueryData(queryKey, context.previousData);
       }
       console.error('Error updating invoice:', err);
-      notify(
-        `Failed to update invoice: ${
-          err instanceof Error ? err.message : 'Unknown error'
-        }`,
-        'error',
+    },
+    onSuccess: (InvoicesData) => {
+      const queryKey = ['invoices'];
+
+      const allCachedKeys = queryClient.getQueriesData<InvoicesData>({
+        queryKey: queryKey,
+      });
+      console.log(
+        '🔍 Existing Cache Keys:',
+        allCachedKeys.map(([key]) => key),
       );
+
+      if (!allCachedKeys) {
+        console.warn('No cached data found for key:', queryKey);
+        return;
+      }
+
+      allCachedKeys.forEach(([cachedKey, oldData]) => {
+        if (!oldData || !oldData.invoices) return;
+        console.log(`updated invoice`, InvoicesData);
+        queryClient.setQueryData(cachedKey, {
+          ...oldData,
+          invoices: oldData.invoices.map((invoice) => {
+            console.log(` invoice`, invoice);
+            const updatedInvoice = InvoicesData.updatedInvoices.find(
+              (u) => u?.userId === invoice.userId,
+            );
+            console.log(`foundInvoice`, updatedInvoice);
+            return updatedInvoice
+              ? convertApiResponseToOriginalFormat(updatedInvoice)
+              : invoice;
+          }),
+        });
+
+        console.log(`✅ Updated cache for key:`, cachedKey);
+      });
     },
-    onSuccess: (data, variables, context) => {
-      // No cache update here to prevent redundant setQueryData
-      notify('Invoice updated successfully!', 'success');
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['invoices', page, limit, lastKey],
+      });
     },
-    // No onSettled to prevent refetching the entire list
   });
 };
+
+const convertApiResponseToOriginalFormat = (
+  apiResponse: Record<string, any>,
+) => {
+  return {
+    amount: apiResponse.amount,
+    customerName: apiResponse.customer_name, // Convert `customer_name` → `customerName`
+    invoiceDate: apiResponse.invoice_date,
+    monthlyDate: apiResponse.monthly_date, // Convert `monthly_date` → `monthlyDate`
+    notes: apiResponse.notes,
+    providerName: apiResponse.providerName,
+    status: apiResponse.status,
+    userId: apiResponse.userId,
+  };
+};
+
+// export const useUpdateInvoiceQuery = (
+//   limit: number,
+//   page: number,
+//   lastKey: string | null,
+// ) => {
+//   const queryClient = useQueryClient();
+
+//   return useMutation<
+//     Invoice[], // Response type
+//     Error, // Error type
+//     { updatedData: Partial<Invoice>[] }, // Variables type (what you pass to mutate)
+//     { previousData?: InvoicesData } // Context type (for optimistic updates)
+//   >({
+//     mutationFn: async ({ updatedData }) => {
+//       // Assuming updateInvoice is your API call function
+//       const response = await updateInvoice(updatedData);
+//       return response;
+//     },
+//     onMutate: async ({ updatedData }) => {
+//       const queryKey = ['invoices', page, limit, lastKey];
+
+//       // Cancel any outgoing refetches
+//       await queryClient.cancelQueries({ queryKey });
+
+//       // Snapshot the previous value
+//       const previousData = queryClient.getQueryData<InvoicesData>(queryKey);
+
+//       if (previousData) {
+//         // Optimistically update the cache
+//         const updatedInvoices = previousData.invoices.map((invoice) => {
+//           const update = updatedData.find((u) => u.userId === invoice.userId);
+//           return update ? { ...invoice, ...update } : invoice;
+//         });
+
+//         queryClient.setQueryData<InvoicesData>(queryKey, {
+//           ...previousData,
+//           invoices: updatedInvoices,
+//         });
+//       }
+
+//       // Return the previous data for potential rollback
+//       return { previousData };
+//     },
+//     onError: (err, variables, context) => {
+//       const queryKey = ['invoices', page, limit, lastKey];
+//       if (context?.previousData) {
+//         queryClient.setQueryData(queryKey, context.previousData);
+//       }
+//       console.error('Error updating invoice:', err);
+//       notify(
+//         `Failed to update invoice: ${err instanceof Error ? err.message : 'Unknown error'}`,
+//         'error',
+//       );
+//     },
+//     onSuccess: (data) => {
+//       // Optional: Invalidate and refetch to ensure fresh data
+//       queryClient.invalidateQueries({
+//         queryKey: ['invoices', page, limit, lastKey],
+//       });
+//       notify('Invoice updated successfully!', 'success');
+//     },
+//   });
+// };
+
+// export const useUpdateInvoiceQuery = (
+//   limit: number,
+//   page: number,
+//   lastKey: string | null,
+// ) => {
+//   return useMutation<
+//     Invoice[],
+//     Error,
+//     { updatedData: Partial<Invoice>[] },
+//     { previousData?: InvoicesData }
+//   >(() => updateInvoice(updatedData), {
+//     onMutate: async ({ updatedData }) => {
+//       const invoiceToUpdate = updatedData[0];
+//       const invoiceId = invoiceToUpdate.userId;
+//       const newStatus = invoiceToUpdate.status;
+
+//       const queryKey = ['invoices', page, limit, lastKey];
+//       await queryClient.cancelQueries({ queryKey });
+
+//       const previousData = queryClient.getQueryData<InvoicesData>(queryKey);
+
+//       if (previousData) {
+//         queryClient.setQueryData<InvoicesData>(queryKey, {
+//           ...previousData,
+//           invoices: previousData.invoices.map((invoice) =>
+//             invoice.userId === invoiceId
+//               ? { ...invoice, status: newStatus }
+//               : invoice,
+//           ),
+//         });
+//       } else {
+//         console.warn('No invoices found in cache for queryKey:', queryKey);
+//         return { previousData: undefined };
+//       }
+
+//       return { previousData };
+//     },
+//     onError: (err, variables, context) => {
+//       if (context?.previousData) {
+//         queryClient.setQueryData(
+//           ['invoices', page, limit, lastKey],
+//           context.previousData,
+//         );
+//       }
+//       console.error('Error updating invoice:', err);
+//       notify(
+//         `Failed to update invoice: ${err instanceof Error ? err.message : 'Unknown error'}`,
+//         'error',
+//       );
+//     },
+//     onSuccess: () => {
+//       notify('Invoice updated successfully!', 'success');
+//     },
+//   });
+// };

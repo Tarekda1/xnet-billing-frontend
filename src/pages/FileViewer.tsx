@@ -36,7 +36,7 @@ const FileViewer: React.FC = () => {
     if (fileId) {
       setLoading(true);
       presignedUrlMutation.mutate(`uploads/${fileId}`, {
-        onSuccess: async (data) => {
+        onSuccess: async (data: any) => {
           try {
             const response = await fetch(data.url);
             const arrayBuffer = await response.arrayBuffer();
@@ -52,7 +52,7 @@ const FileViewer: React.FC = () => {
             setLoading(false);
           }
         },
-        onError: (error) => {
+        onError: (error: any) => {
           console.error('Error fetching presigned URL:', error);
           setLoading(false);
         },
@@ -198,10 +198,10 @@ const FileViewer: React.FC = () => {
           <div className="flex justify-between mb-4">
             <button
               onClick={handleSaveChanges}
-              disabled={saveFileMutation.isLoading}
+              disabled={saveFileMutation.isPending}
               className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
             >
-              {saveFileMutation.isLoading ? 'Saving...' : 'Save Changes'}
+              {saveFileMutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
 

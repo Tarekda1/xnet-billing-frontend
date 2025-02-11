@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Breadcrumb from '../components/Breadcrumbs';
@@ -9,33 +9,33 @@ interface DashboardLayoutProps {
 }
 
 const Layout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
-    <div className="flex h-screen">
+    <div
+      className={`grid-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+    >
+      {/* Navbar */}
+      <Navbar />
+
       {/* Sidebar */}
+      {/* isCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} */}
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex flex-col flex-grow">
-        {/* Navbar */}
-        <Navbar />
-        {/* Scrollable Main Content */}
-        <main className="flex-grow overflow-y-auto p-6 bg-gray-100">
-          <Breadcrumb />
-          {children}
-        </main>
-      </div>
-      {/* Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+      <main className="flex flex-col flex-grow overflow-y-auto bg-gray-100 p-6 main-content">
+        {/* Breadcrumb */}
+        <Breadcrumb />
+        {/* Page Content */}
+        {children}
+      </main>
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 };

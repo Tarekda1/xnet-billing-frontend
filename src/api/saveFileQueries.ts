@@ -1,10 +1,10 @@
 // src/api/saveFileQueries.ts
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import apiClient from './client';
 import { Update } from '../types/types';
 
 // Function to save file changes
-const saveFileChanges = async (payload: {
+const saveFileChanges = async (payload?: {
   fileId: string;
   updatedData: Update[];
 }) => {
@@ -14,5 +14,8 @@ const saveFileChanges = async (payload: {
 
 // React Query hook to save file changes
 export const useSaveFileQuery = () => {
-  return useMutation(saveFileChanges);
+  return useMutation({
+    mutationFn: (payload: { fileId: string; updatedData: Update[] }) =>
+      saveFileChanges(payload),
+  });
 };

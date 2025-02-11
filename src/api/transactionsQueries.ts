@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import apiClient from './client';
 import { Transaction } from '../types/types'; // Import the Transaction type
 import { useMemo } from 'react';
@@ -11,7 +11,10 @@ const fetchTransactions = async (): Promise<Transaction[]> => {
 
 // React Query hook to fetch transactions
 export const useTransactionsQuery = () => {
-  const query = useQuery<Transaction[]>('transactions', fetchTransactions);
+  const query = useQuery<Transaction[]>({
+    queryKey: ['transactions'],
+    queryFn: () => fetchTransactions(),
+  });
 
   // Use useMemo to calculate transaction stats or derived data efficiently
   const stats = useMemo(() => {
@@ -26,16 +29,16 @@ export const useTransactionsQuery = () => {
 
     const totalTransactions = query.data.length;
 
-    const totalAmount = query.data.reduce((sum, transaction) => {
+    const totalAmount = query.data.reduce((sum: any, transaction: any) => {
       return sum + (transaction.amount || 0);
     }, 0);
 
     const completedTransactions = query.data.filter(
-      (transaction) => transaction.status?.toLowerCase() === 'paid',
+      (transaction: any) => transaction.status?.toLowerCase() === 'paid',
     ).length;
 
     const pendingTransactions = query.data.filter(
-      (transaction) => transaction.status?.toLowerCase() === 'pending',
+      (transaction: any) => transaction.status?.toLowerCase() === 'pending',
     ).length;
 
     return {

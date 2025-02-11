@@ -1,8 +1,9 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './layouts/Layout';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InvoiceProvider } from './context/InvoiceContext';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 const queryClient = new QueryClient();
 
@@ -15,9 +16,10 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Layout>
-          <InvoiceProvider>
+      <InvoiceProvider>
+        {/* Moved InvoiceProvider here */}
+        <Router>
+          <Layout>
             <Suspense fallback={<div>Loading...</div>}>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
@@ -26,9 +28,10 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
               </Routes>
             </Suspense>
-          </InvoiceProvider>
-        </Layout>
-      </Router>
+          </Layout>
+        </Router>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </InvoiceProvider>
     </QueryClientProvider>
   );
 };

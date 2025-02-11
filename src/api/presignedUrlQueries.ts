@@ -1,5 +1,5 @@
 // src/api/presignedUrlQueries.ts
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import apiClient from './client';
 
 interface PresignedUrlResponse {
@@ -16,5 +16,7 @@ const fetchPresignedUrl = async (
 };
 
 export const usePresignedUrlMutation = () => {
-  return useMutation((fileName: string) => fetchPresignedUrl(fileName));
+  return useMutation({
+    mutationFn: (fileName: string) => fetchPresignedUrl(fileName),
+  });
 };

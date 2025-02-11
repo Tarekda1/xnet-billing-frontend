@@ -1,5 +1,5 @@
 // src/api/fileQueries.ts
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import apiClient from './client';
 import { FileObject } from '../types/types'; // Import the type
 
@@ -11,5 +11,8 @@ const fetchFiles = async (): Promise<FileObject[]> => {
 
 // React Query hook to fetch files
 export const useFilesQuery = () => {
-  return useQuery<FileObject[]>('files', fetchFiles);
+  return useQuery<FileObject[]>({
+    queryKey: ['files'],
+    queryFn: () => fetchFiles(),
+  });
 };
