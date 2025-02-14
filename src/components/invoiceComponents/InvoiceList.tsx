@@ -11,6 +11,7 @@ import { useInvoiceContext } from '../../context/InvoiceContext';
 import MonthYearSelector from '../MonthYearSelector';
 import { useInvoiceStatus } from '../../context/InvoiceStatusContext';
 import { queryClient } from '../../api/queryClient';
+import SearchInput from '../xnet-components/SearchInput';
 
 const InvoiceList: React.FC = () => {
   const { queryParams, setQueryParams } = useInvoiceContext();
@@ -125,6 +126,16 @@ const InvoiceList: React.FC = () => {
     setSelectedInvoice(null);
   };
 
+  const handleSearch = (search: string) => {
+    setQueryParams((prev) => ({
+      ...prev,
+      currentPage: 1,
+      lastKey: '',
+      page: 1,
+      search,
+    })); // Reset page on search
+  };
+
   // Next Page: Push the current page's lastKey into history and update the query parameters.
   const handleNextPage = () => {
     if (pagination.lastKey) {
@@ -167,7 +178,7 @@ const InvoiceList: React.FC = () => {
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div className="w-full max-w-screen overflow-hidden bg-white shadow-md rounded-lg border border-gray-300 p-2 sm:p-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
+          <div className="flex flex-col md:flex-col lg:flex-row items-start md:items-center gap-4 md:gap-6">
             {/* Month/Year Filter */}
             <div className="w-full md:w-auto flex flex-col sm:flex-row items-start sm:items-center gap-2">
               <label className="text-sm text-gray-600 font-medium shrink-0">
@@ -187,11 +198,11 @@ const InvoiceList: React.FC = () => {
               />
             </div>
             {/* Status Filters */}
-            <div className="w-full md:w-auto flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <span className="text-sm text-gray-600 font-medium shrink-0">
+            <div className="w-full md:w-auto flex flex-col sm:flex-col md:flex-row lg:flex-col items-start sm:items-center gap-2">
+              <span className="text-sm text-gray-600 sm:hidden  font-medium shrink-0">
                 Status:
               </span>
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 w-full">
+              <div className="grid grid-cols-1  xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3  gap-2 w-full">
                 {['paid', 'pending', 'not paid'].map((status) => (
                   <label
                     key={status}
@@ -219,6 +230,9 @@ const InvoiceList: React.FC = () => {
                   </label>
                 ))}
               </div>
+            </div>
+            <div className="w-full md:max-w-[300px]">
+              <SearchInput onSearch={handleSearch} />
             </div>
           </div>
           {isFetching && (

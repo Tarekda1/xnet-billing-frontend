@@ -7,16 +7,18 @@ import {
   Pagination,
 } from '../types/types';
 import { notify } from '../utils/toastUtils';
-import { queryClient } from './queryClient'; // Ensure this is correctly imported
+import { useInvoiceContext } from '../context/InvoiceContext';
 
 const fetchInvoices = async ({
   limit = 20,
   lastKey = null,
   page = 1,
+  search,
 }: FetchInvoicesParams): Promise<InvoicesData> => {
   const params: Record<string, string> = {
     limit: limit.toString(),
     page: page.toString(),
+    search: search || '', // Include search term if provided
   };
   if (lastKey) params.lastKey = lastKey;
 
@@ -30,21 +32,24 @@ export const useInvoiceQuery = ({
   limit = 20,
   lastKey = null,
   page = 1,
+  search = '',
 }: FetchInvoicesParams) => {
-  // const query = useQuery(
-  //   ['invoices', page, limit, lastKey], // Query key
-  //   () => fetchInvoices({ limit, lastKey, page }), // Query function
-  //   {
-  //     staleTime: 1000 * 60 * 10, // 10 minutes
-  //     cacheTime: 1000 * 60 * 60, // 1 hour
-  //     keepPreviousData: true,
-  //     refetchOnMount: 'always', // Ensure it's always refetched on mount
-  //     refetchOnWindowFocus: false, // Don't refetch on window focus
-  //   }
-  // );
+  console.log({
+    limit,
+    lastKey,
+    page,
+    search,
+  });
+  const { queryParams } = useInvoiceContext();
   const query = useQuery({
-    queryKey: ['invoices', page, limit, lastKey],
-    queryFn: () => fetchInvoices({ page, limit, lastKey }),
+    queryKey: [
+      'invoices',
+      queryParams.page,
+      queryParams.limit,
+      queryParams.lastKey,
+      queryParams.search,
+    ],
+    queryFn: () => fetchInvoices({ page, limit, lastKey, search }),
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 60, // Renamed from cacheTime to gcTime in v4
     // Optional: Add keepPreviousData for better pagination UX
@@ -53,6 +58,7 @@ export const useInvoiceQuery = ({
   return {
     ...query, // Contains isLoading, isFetching, etc.
     invoices: query.data?.invoices || [],
+    lastKey: query.data?.pagination.lastKey || null,
   };
 };
 
@@ -118,15 +124,12 @@ export const useUpdateInvoiceQuery = (
 
       allCachedKeys.forEach(([cachedKey, oldData]) => {
         if (!oldData || !oldData.invoices) return;
-        console.log(`updated invoice`, InvoicesData);
         queryClient.setQueryData(cachedKey, {
           ...oldData,
           invoices: oldData.invoices.map((invoice) => {
-            console.log(` invoice`, invoice);
             const updatedInvoice = InvoicesData.updatedInvoices.find(
               (u) => u?.userId === invoice.userId,
             );
-            console.log(`foundInvoice`, updatedInvoice);
             return updatedInvoice
               ? convertApiResponseToOriginalFormat(updatedInvoice)
               : invoice;

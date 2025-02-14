@@ -280,7 +280,9 @@ const InvoiceTable: React.FC<TableProps> = ({
               } // Replace 'paid' with desired status
               title="Update"
               className={`p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors`}
-              disabled={loadingInvoices[invoice.userId]}
+              disabled={
+                loadingInvoices[`${invoice.userId}-${invoice.customerName}`]
+              }
             >
               <FaSave size={16} />
             </button>
@@ -342,7 +344,7 @@ const InvoiceTable: React.FC<TableProps> = ({
               <option value="pending">Pending</option>
             </select>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-end mt-4">
-              {loadingInvoices[invoice.userId] ? (
+              {loadingInvoices[`${invoice.userId}-${invoice.customerName}`] ? (
                 <LoadingSpinner small />
               ) : (
                 <>

@@ -28,6 +28,7 @@ export const InvoiceProvider: React.FC<InvoiceProviderProps> = ({
     page: 1,
     statusFilters: { paid: true, pending: true, 'not paid': true },
     currentPage: 1,
+    search: '', // Pass search term
   });
 
   return (

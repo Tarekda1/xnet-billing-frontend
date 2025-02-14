@@ -12,6 +12,7 @@ export interface FetchInvoicesParams {
   selectedMonthYear?: string;
   statusFilters?: Record<string, boolean>;
   page?: number;
+  search?: string; // Pass search term
 }
 
 export type CellValue = string | number | boolean | undefined;
